@@ -35,10 +35,29 @@ export class Player {
   private onMouseMove=(e:MouseEvent)=>{
     if(!this.enabled || (!document.pointerLockElement && !this.dragging))return;
     // Browsers may report the cursor-recentering warp as a large relative delta.
-    if(this.ignoreLookEvents>0){this.ignoreLookEvents--;return;}
     this.yaw-=e.movementX*settings.sensitivity;
     this.pitch=clamp(this.pitch-e.movementY*settings.sensitivity*(settings.invertY?-1:1),-1.53,1.53);
   };
+  touchForward = 0;
+  touchStrafe = 0;
+  touchJump = false;
+  setMoveAxes(forward: number, strafe: number): void {
+    this.touchForward = clamp(forward, -1, 1);
+    this.touchStrafe = clamp(strafe, -1, 1);
+  }
+  jump(): void {
+    if (this.grounded) {
+      this.vel[1] = TUNING.player.jumpSpeed;
+      this.grounded = false;
+    } else {
+      this.touchJump = true;
+    }
+  }
+  addLookDelta(dx: number, dy: number): void {
+    if (!this.enabled) return;
+    this.yaw -= dx * settings.sensitivity;
+    this.pitch = clamp(this.pitch - dy * settings.sensitivity * (settings.invertY ? -1 : 1), -1.53, 1.53);
+  }
   isDown(code:string):boolean {return this.keys.has(code);}
   respawn(pos:Vec3,yaw:number):void {
     this.pos=[...pos];this.vel=[0,0,0];this.yaw=yaw;this.pitch=.005;this.health=100;this.alive=true;
@@ -54,8 +73,8 @@ export class Player {
   update(dt:number):void {
     if(!this.alive)return;
     const t=TUNING.player;this.timeSinceDamage+=dt;this.ladderCooldown=Math.max(0,this.ladderCooldown-dt);
-    const forward=Number(this.isDown("KeyW"))-Number(this.isDown("KeyS"));
-    const strafe=Number(this.isDown("KeyD"))-Number(this.isDown("KeyA"));
+    const forward=clamp(Number(this.isDown("KeyW"))-Number(this.isDown("KeyS"))+this.touchForward,-1,1);
+    const strafe=clamp(Number(this.isDown("KeyD"))-Number(this.isDown("KeyA"))+this.touchStrafe,-1,1);
     let crouch=this.isDown("KeyC")||this.isDown("ControlLeft");
     if(this.crouching&&!crouch){const head=actorBox(this.pos,[t.radius,0,t.radius],t.height);crouch=this.solids.some(b=>aabbOverlap(head,b));}
     this.crouching=crouch;this.sprinting=!crouch&&forward>0&&(this.isDown("ShiftLeft")||this.isDown("ShiftRight"));
@@ -68,7 +87,7 @@ export class Player {
       this.pos[2]=damp(this.pos[2],ladder.pos[2],9,dt);
       this.pos[1]=clamp(this.pos[1]+climb*dt,0,ladder.yMax+.04);
       if(this.pos[1]>=ladder.yMax+.02&&climb>0){this.pos[2]=ladder.pos[2]-1.12;this.onLadder=false;this.ladderCooldown=.7;}
-      if(this.isDown("Space")||strafe!==0){this.onLadder=false;this.ladderCooldown=.6;this.vel=[strafe*3,4,2];}
+      if(this.isDown("Space")||this.touchJump||strafe!==0){this.onLadder=false;this.ladderCooldown=.6;this.vel=[strafe*3,4,2];this.touchJump=false;}
       else if(this.onLadder)return;
     }else this.onLadder=false;
     const sin=Math.sin(this.yaw),cos=Math.cos(this.yaw);
@@ -77,7 +96,7 @@ export class Player {
     if(this.grounded){
       this.vel[0]=damp(this.vel[0],length?wx/length*speed:0,t.accel,dt);
       this.vel[2]=damp(this.vel[2],length?wz/length*speed:0,t.accel,dt);
-      if(this.isDown("Space")){this.vel[1]=t.jumpSpeed;this.grounded=false;}
+      if(this.isDown("Space")||this.touchJump){this.vel[1]=t.jumpSpeed;this.grounded=false;this.touchJump=false;}
     }else if(length){this.vel[0]+=wx/length*t.airAccel*dt;this.vel[2]+=wz/length*t.airAccel*dt;}
     this.vel[1]=Math.max(-45,this.vel[1]-t.gravity*dt);
     const falling=this.vel[1];

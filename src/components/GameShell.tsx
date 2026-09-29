@@ -7,13 +7,11 @@ import { loadPersistedLoadout, savePersistedLoadout } from "@/game/progression";
 import type { DifficultyId, GameMode, Loadout } from "@/game/types";
 import { Hud } from "./Hud";
 import { LoadoutMenu, type MenuSettings } from "./LoadoutMenu";
+import { MobileControls } from "./MobileControls";
 
 function fallbackSocketUrl(): string {
-  const { protocol, hostname } = window.location;
-  const previewHost = /^(\d+)-(.+)$/.exec(hostname);
-  return previewHost
-    ? `${protocol}//4000-${previewHost[2]}`
-    : `${protocol}//${hostname}:4000`;
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
 }
 
 function formatTime(ms: number): string {
@@ -56,7 +54,9 @@ export default function GameShell() {
         });
         if (response.ok) {
           const config = (await response.json()) as { socketUrl?: string };
-          if (config.socketUrl) socketUrl = config.socketUrl;
+          if (typeof config.socketUrl === "string") {
+            socketUrl = config.socketUrl.trim() || fallbackSocketUrl();
+          }
         }
       } catch {
         // The local game is playable even when the multiplayer port is offline.
@@ -190,6 +190,7 @@ export default function GameShell() {
       />
 
       {ready && <Hud state={state} />}
+      <MobileControls engine={engineRef.current} active={ready && state.status === "playing"} />
 
       {ready && state.status === "menu" && (
         <LoadoutMenu

@@ -382,6 +382,10 @@ export class Engine {
   start(): void {
     if (this.running) return; this.running = true; this.lastTime = performance.now(); this.raf = requestAnimationFrame(this.tick);
   }
+  isTouchDevice(): boolean {
+    return typeof window !== "undefined" && (("ontouchstart" in window) || navigator.maxTouchPoints > 0);
+  }
+
   lock(): void {
     if (this.lockPending || this.disposed) return;
     if (this.matchConnected && this.team === "spectator") {
@@ -390,8 +394,18 @@ export class Engine {
       return;
     }
     this.connectMatch();
-    this.lockPending = true; this.player.setEnabled(true); hudStore.set({ status: "playing" });
+    this.player.setEnabled(true);
+    hudStore.set({ status: "playing" });
     sfx.startAmbient();
+
+    if (this.isTouchDevice()) {
+      this.fallbackLook = true;
+      this.lockPending = false;
+      hudStore.set({ pointerLocked: false });
+      return;
+    }
+
+    this.lockPending = true;
     try {
       const result = this.options.canvas.requestPointerLock?.();
       if (result) void result.catch(this.onPointerLockError);
@@ -415,7 +429,7 @@ export class Engine {
     this.updateHud();
     this.updateCamera(0);
   }
-  private pauseOnBlur = () => this.pause();
+  private pauseOnBlur = () => { if (!this.isTouchDevice()) this.pause(); };
   private onContextLost = (event: Event) => {
     event.preventDefault();
     if (this.disposed) return;
@@ -438,15 +452,61 @@ export class Engine {
   };
   private onPointerLockError = () => {
     this.lockPending = false; this.fallbackLook = true; this.player.setEnabled(true);
-    hudStore.set({ status: "playing", pointerLocked: false }); hudStore.message("Hold the mouse to look around");
+    hudStore.set({ status: "playing", pointerLocked: false });
+    if (!this.isTouchDevice()) hudStore.message("Hold the mouse to look around");
   };
   private onPointerLockChange = () => {
+    if (this.isTouchDevice()) return;
     this.lockPending = false;
     const locked = document.pointerLockElement === this.options.canvas;
     hudStore.set({ pointerLocked: locked });
     if (locked) { this.fallbackLook = false; this.player.setEnabled(true); hudStore.set({ status: "playing" }); }
     else this.pause();
   };
+
+  // Mobile / Touch controls
+  setMobileFire(firing: boolean): void {
+    if (firing) {
+      this.mouseDown = true;
+      this.mousePressed = true;
+    } else {
+      this.mouseDown = false;
+    }
+  }
+
+  setMobileAim(aiming: boolean): void {
+    this.rightDown = aiming;
+  }
+
+  mobileJump(): void {
+    this.player.jump();
+  }
+
+  mobileReload(): void {
+    if (this.bike.riding) { this.resetRide(); return; }
+    if (this.weapon.reload()) sfx.reload();
+  }
+
+  mobileInteract(): void {
+    this.interact();
+  }
+
+  mobileMove(forward: number, strafe: number): void {
+    this.player.setMoveAxes(forward, strafe);
+  }
+
+  mobileLook(dx: number, dy: number): void {
+    this.player.addLookDelta(dx, dy);
+  }
+
+  cycleWeapon(): void {
+    const order: import("./types").WeaponKind[] = ["rifle", "smg", "shotgun", "sniper", "pistol"];
+    const owned = order.filter(k => this.weapon.inventory.has(k));
+    if (owned.length <= 1) return;
+    const currentIdx = owned.indexOf(this.weapon.kind);
+    const nextIdx = (currentIdx + 1) % owned.length;
+    this.weapon.switch(owned[nextIdx]);
+  }
   private onContextMenu = (event: Event) => { if (event.target === this.options.canvas || document.pointerLockElement === this.options.canvas) event.preventDefault(); };
   private onMouseDown = (event: MouseEvent) => {
     if (hudStore.getSnapshot().status !== "playing" || (!document.pointerLockElement && !this.fallbackLook)) return;
