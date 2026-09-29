@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { Engine } from "@/game/engine";
 import { getServerHudSnapshot, hudStore } from "@/game/store";
 import { loadPersistedLoadout, savePersistedLoadout } from "@/game/progression";
-import type { DifficultyId, GameMode, Loadout } from "@/game/types";
+import { PRIMARY_ORDER } from "@/game/armament";
+import { initEquippedSkinsFromStorage } from "@/game/skins";
+import type { DifficultyId, GameMode, Loadout, SecondaryKind } from "@/game/types";
 import { Hud } from "./Hud";
 import { LoadoutMenu, type MenuSettings } from "./LoadoutMenu";
 import { MobileControls } from "./MobileControls";
@@ -27,7 +29,7 @@ export default function GameShell() {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState(false);
   const [callsign, setCallsign] = useState("");
-  const [loadout, setLoadout] = useState<Loadout>({ primary: "rifle", perk: "scout" });
+  const [loadout, setLoadout] = useState<Loadout>({ primary: "rifle", secondary: "pistol", perk: "scout" });
   const [difficulty, setDifficulty] = useState<DifficultyId>("regular");
   const [settings, setSettings] = useState<MenuSettings>({ sensitivity: 0.002, volume: 70, muted: false, invertY: false, quality: "high" });
   const state = useSyncExternalStore(
@@ -69,8 +71,10 @@ export default function GameShell() {
         const chosenMode: GameMode = new URLSearchParams(window.location.search).get("mode") === "deathmatch" ? "deathmatch" : "rescue";
         socketUrlRef.current = socketUrl;
         setMode(chosenMode);
+        initEquippedSkinsFromStorage();
         const persisted = loadPersistedLoadout();
-        const storedPrimary = (["rifle", "smg", "shotgun", "sniper"] as const).includes(persisted.primary as Loadout["primary"]) ? persisted.primary as Loadout["primary"] : "rifle";
+        const storedPrimary = (PRIMARY_ORDER as readonly string[]).includes(persisted.primary) ? persisted.primary as Loadout["primary"] : "rifle";
+        const storedSecondary = (persisted.secondary === "deagle" ? "deagle" : "pistol") as SecondaryKind;
         const storedPerk = (["medic", "scout", "armor"] as const).includes(persisted.perk as Loadout["perk"]) ? persisted.perk as Loadout["perk"] : "scout";
         const storedDifficulty: DifficultyId = persisted.difficulty === "recruit" || persisted.difficulty === "veteran" ? persisted.difficulty : "regular";
         const name = persisted.callsign || `AGENT-${String(Math.floor(Math.random() * 900) + 100)}`;
@@ -79,7 +83,7 @@ export default function GameShell() {
           playerName: name,
           socketUrl,
           mode: chosenMode,
-          loadout: { primary: storedPrimary, perk: storedPerk },
+          loadout: { primary: storedPrimary, secondary: storedSecondary, perk: storedPerk },
           difficulty: storedDifficulty,
         });
         engineRef.current = engine;
@@ -158,7 +162,7 @@ export default function GameShell() {
     const engine = engineRef.current;
     if (!engine) return;
     const name = callsign.trim() || `AGENT-${String(Math.floor(Math.random() * 900) + 100)}`;
-    savePersistedLoadout({ primary: loadout.primary, perk: loadout.perk, difficulty, callsign: name });
+    savePersistedLoadout({ primary: loadout.primary, secondary: loadout.secondary ?? "pistol", perk: loadout.perk, difficulty, callsign: name });
     engine.setPlayerName(name);
     engine.applyLoadout(loadout, difficulty);
     engine.lock();
@@ -207,6 +211,7 @@ export default function GameShell() {
           bests={bests}
           leaderboard={state.leaderboard}
           onDeploy={deploy}
+          onRefreshSkin={() => engineRef.current?.refreshWeaponSkin()}
         />
       )}
 

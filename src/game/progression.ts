@@ -135,9 +135,9 @@ export function saveAchievements(ids: string[]): void {
   write(K.achievements, ids);
 }
 
-export type PersistedLoadout = { primary: string; perk: string; difficulty: string; callsign: string };
+export type PersistedLoadout = { primary: string; secondary?: string; perk: string; difficulty: string; callsign: string };
 export function loadPersistedLoadout(): PersistedLoadout {
-  return read<PersistedLoadout>(K.loadout, { primary: "rifle", perk: "scout", difficulty: "regular", callsign: "" });
+  return read<PersistedLoadout>(K.loadout, { primary: "rifle", secondary: "pistol", perk: "scout", difficulty: "regular", callsign: "" });
 }
 export function savePersistedLoadout(value: PersistedLoadout): void {
   write(K.loadout, value);

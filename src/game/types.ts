@@ -51,14 +51,15 @@ export type LadderDef = {
 };
 
 export type EnemyKind = "guard" | "sniper";
-export type WeaponKind = "rifle" | "smg" | "sniper" | "shotgun" | "pistol";
-export type PrimaryKind = Exclude<WeaponKind, "pistol">;
+export type SecondaryKind = "pistol" | "deagle";
+export type WeaponKind = "rifle" | "smg" | "sniper" | "shotgun" | "pistol" | "deagle" | "awp" | "p90";
+export type PrimaryKind = Exclude<WeaponKind, SecondaryKind>;
 export type TeamId = "blue" | "red";
 export type TeamOrSpectator = TeamId | "spectator";
 export type GameMode = "rescue" | "deathmatch";
 export type PerkId = "medic" | "scout" | "armor";
 export type DifficultyId = "recruit" | "regular" | "veteran";
-export type Loadout = { primary: PrimaryKind; perk: PerkId };
+export type Loadout = { primary: PrimaryKind; secondary?: SecondaryKind; perk: PerkId };
 
 export type EnemySpawnDef = {
   id: string;

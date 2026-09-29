@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import type { HudState } from "@/game/store";
 import { SLOT_ORDER, WEAPONS } from "@/game/armament";
+import { getRankForXp } from "@/game/ranks";
+import { getEquippedSkin } from "@/game/skins";
+import { loadTotalXp } from "@/game/progression";
 import { Minimap } from "./Minimap";
 
 function Heart() { return <svg viewBox="0 0 48 44" aria-hidden="true"><path d="M24 41C20 37 2 26 2 13C2 1 17-3 24 8C31-3 46 1 46 13C46 26 28 37 24 41Z" fill="currentColor" /></svg>; }
@@ -14,13 +17,14 @@ function BikeReticle({ hit }: { hit: number }) {
     <i />{hit > 0 && <b key={hit} className="reticle-hit" />}
   </div>;
 }
-function ScopeOverlay() {
+function ScopeOverlay({ kind }: { kind?: string }) {
+  const label = kind === "awp" ? "AWP MAGNUM · .338 LAPUA" : "SVD OPTIC · 7.62×54";
   return <div className="scope-overlay" aria-hidden="true">
     <div className="scope-aperture">
       <span className="scope-cross scope-cross-v" /><span className="scope-cross scope-cross-h" />
       <span className="scope-center" />
       <span className="scope-mil scope-mil-left" /><span className="scope-mil scope-mil-right" />
-      <span className="scope-label">SVD · 7.62×54</span>
+      <span className="scope-label">{label}</span>
     </div>
   </div>;
 }
@@ -58,16 +62,22 @@ export function Hud({ state }: { state: HudState }) {
   if (state.status === "menu") return <div className="game-hud menu-idle" />;
 
   const active = state.status === "playing" || state.status === "paused";
-  const scoped = state.aiming && state.weaponKind === "sniper" && !state.riding;
+  const isSniperWeapon = state.weaponKind === "sniper" || state.weaponKind === "awp";
+  const scoped = state.aiming && isSniperWeapon && !state.riding;
   const mags = Math.ceil(state.reserve / state.magazineSize);
   const lowHp = state.health <= 30 && state.status === "playing";
+  const rankInfo = getRankForXp(loadTotalXp() + state.score);
+  const equippedSkin = getEquippedSkin(state.weaponKind);
+
   return <div className={`game-hud${scoped ? " scoped" : ""}${lowHp ? " low-hp" : ""}`}>
     <div className="damage-shade" style={{ opacity: state.damageFlash }} />
     {lowHp && <div className="lowhp-pulse" />}
     {active && <>
       <div className="xp-wrap" aria-hidden="true">
-        <span className="level-badge">LV {state.level}</span>
-        <span className="xp-bar"><i style={{ width: `${Math.round(state.xpProgress * 100)}%` }} /></span>
+        <span className="level-badge" style={{ borderColor: rankInfo.rank.badgeColor, color: rankInfo.rank.badgeColor }}>
+          {rankInfo.rank.division} · {rankInfo.rank.name}
+        </span>
+        <span className="xp-bar"><i style={{ width: `${Math.round(state.xpProgress * 100)}%`, backgroundColor: rankInfo.rank.badgeColor }} /></span>
         <span className="score-chip">{state.score} PTS</span>
       </div>
       {state.mode === "deathmatch" && <>
@@ -123,7 +133,7 @@ export function Hud({ state }: { state: HudState }) {
       {(state.safeZone || state.spawnProtection > 0) && !state.riding && <div className="safe-status"><Shield /><span>{state.safeZone ? "SAFE STAGING AREA" : `PROTECTED · ${state.spawnProtection}s`}</span></div>}
       {state.mode !== "deathmatch" && state.connected && state.playersOnline > 1 && <div className="player-status">{state.playersOnline} operatives</div>}
       {state.minimap && <Minimap map={state.minimap} />}
-      {state.aiming && state.weaponKind === "sniper" && !state.riding && <ScopeOverlay />}
+      {state.aiming && isSniperWeapon && !state.riding && <ScopeOverlay kind={state.weaponKind} />}
       {state.riding ? <BikeReticle hit={state.hitMarker} /> : !state.aiming && <div className="aim-dot" aria-hidden="true" />}
       {state.hitMarker > 0 && <span key={state.hitMarker} className="hit-marker" aria-hidden="true" />}
       {bannerVisible && state.banner && <div key={state.banner.id} className="kill-banner"><b>{state.banner.title}</b>{state.banner.sub && <span>{state.banner.sub}</span>}</div>}
@@ -156,7 +166,16 @@ export function Hud({ state }: { state: HudState }) {
       </div>
       <div className="speed-readout"><div><strong>{state.speed.toString().padStart(2, "0")}</strong><span>km/h</span></div><p>{Math.min(state.checkpoint, state.totalCheckpoints)} / {state.totalCheckpoints} <span>CHECKPOINTS</span></p></div>
     </> : <div className="ammo-readout" aria-label={`${state.weaponName}, ${state.ammo} rounds, ${state.reserve} in reserve`}>
-      <div className="ammo-details"><span>{state.weaponName}</span><small>{state.reloading ? "Reloading" : `${state.ammo} / ${state.magazineSize}`}</small>{state.reloading && <i style={{ width: `${state.reloadProgress * 100}%` }} />}</div>
+      <div className="ammo-details">
+        <span>
+          {state.weaponName}
+          <em style={{ color: `#${equippedSkin.lineColor.toString(16).padStart(6, '0')}`, marginLeft: 6, fontStyle: 'normal', fontSize: '0.85em', opacity: 0.9 }}>
+            [{equippedSkin.name.split('|')[1]?.trim() ?? equippedSkin.name}]
+          </em>
+        </span>
+        <small>{state.reloading ? "Reloading" : `${state.ammo} / ${state.magazineSize}`}</small>
+        {state.reloading && <i style={{ width: `${state.reloadProgress * 100}%` }} />}
+      </div>
       <span className="mag-count">{mags}<span>×</span></span><Magazine />
     </div>}
     {!state.riding && state.inventory.length > 1 && active && <div className="weapon-slots">{SLOT_ORDER.filter(kind => state.inventory.includes(kind)).map(kind => <span key={kind} className={state.weaponKind === kind ? "selected" : ""}><b>{SLOT_ORDER.indexOf(kind) + 1}</b> {WEAPONS[kind].short}</span>)}</div>}

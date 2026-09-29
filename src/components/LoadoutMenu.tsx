@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { DIFFICULTIES, LOADOUTS, PERKS, WEAPONS } from "@/game/armament";
-import type { Bests } from "@/game/progression";
+import { type Bests, loadTotalXp } from "@/game/progression";
+import { getRankForXp } from "@/game/ranks";
+import { CrateModal } from "./CrateModal";
 import type { LeaderboardEntry } from "@/game/store";
-import type { DifficultyId, GameMode, Loadout, PrimaryKind } from "@/game/types";
+import type { DifficultyId, GameMode, Loadout, PrimaryKind, SecondaryKind } from "@/game/types";
 
 export type MenuSettings = { sensitivity: number; volume: number; muted: boolean; invertY: boolean; quality: "high" | "low" };
 
@@ -22,6 +24,7 @@ type Props = {
   bests: Bests;
   leaderboard: LeaderboardEntry[];
   onDeploy: () => void;
+  onRefreshSkin?: () => void;
 };
 
 function Bars({ stats }: { stats: { damage: number; rpm: number; range: number; control: number } }) {
@@ -51,6 +54,9 @@ function formatTime(ms: number): string {
 export function LoadoutMenu(props: Props) {
   const { loadout } = props;
   const [copied, setCopied] = useState<string | null>(null);
+  const [showCrates, setShowCrates] = useState(false);
+  const rankInfo = getRankForXp(loadTotalXp());
+
   const share = async (mode: GameMode) => {
     const url = new URL(window.location.href);
     if (mode === "deathmatch") url.searchParams.set("mode", "deathmatch");
@@ -63,6 +69,7 @@ export function LoadoutMenu(props: Props) {
       window.prompt("Copy this invite link", url.toString());
     }
   };
+
   return (
     <div className="menu-overlay">
       <div className="menu-panel">
@@ -70,12 +77,64 @@ export function LoadoutMenu(props: Props) {
           <div>
             <p className="menu-eyebrow">OPERATION // PAPER TRAIL</p>
             <h1>Choose your operation</h1>
-            <p className="menu-sub">Two separate games. Pick your mission before you deploy.</p>
+            <p className="menu-sub">Tactical multiplayer FPS. Pick your loadout and unbox skins before deploying.</p>
           </div>
-          <div className="menu-bests">
-            <div><span>BEST SCORE</span><b>{props.bests.bestScore || "—"}</b></div>
-            <div><span>BEST TIME</span><b>{formatTime(props.bests.bestTimeMs)}</b></div>
-            <div><span>RUNS</span><b>{props.bests.runs}</b></div>
+
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Competitive Rank Badge */}
+            <div
+              className="flex items-center gap-3 bg-neutral-900 border px-3.5 py-2 rounded-xl shadow-lg"
+              style={{ borderColor: rankInfo.rank.badgeColor }}
+            >
+              <div
+                className="w-10 h-10 rounded-full border-2 flex items-center justify-center font-black font-mono text-xs shadow-md"
+                style={{
+                  borderColor: rankInfo.rank.badgeColor,
+                  color: rankInfo.rank.badgeColor,
+                  backgroundColor: `${rankInfo.rank.badgeColor}22`,
+                }}
+              >
+                {rankInfo.rank.division}
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs font-black tracking-wider" style={{ color: rankInfo.rank.badgeColor }}>
+                    {rankInfo.rank.name.toUpperCase()}
+                  </span>
+                  <span className="text-[10px] text-amber-400">
+                    {"★".repeat(rankInfo.rank.stars)}
+                  </span>
+                </div>
+                <div className="w-24 bg-neutral-800 h-1.5 rounded-full overflow-hidden mt-1">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${rankInfo.progressPercent}%`,
+                      backgroundColor: rankInfo.rank.badgeColor,
+                    }}
+                  />
+                </div>
+                <span className="text-[9px] text-neutral-400 font-mono mt-0.5">
+                  {rankInfo.nextRank ? `${rankInfo.xpInRank} / ${rankInfo.xpInRank + rankInfo.xpNeededForNext} XP` : "MAX RANK"}
+                </span>
+              </div>
+            </div>
+
+            {/* CS:GO Crates & Skins Button */}
+            <button
+              type="button"
+              onClick={() => setShowCrates(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black font-mono text-xs rounded-xl shadow-xl flex items-center gap-2 tracking-wider transition-transform active:scale-95 cursor-pointer"
+            >
+              <span className="text-base">📦</span>
+              <span>CRATES & SKINS</span>
+            </button>
+
+            <div className="menu-bests">
+              <div><span>BEST SCORE</span><b>{props.bests.bestScore || "—"}</b></div>
+              <div><span>BEST TIME</span><b>{formatTime(props.bests.bestTimeMs)}</b></div>
+              <div><span>RUNS</span><b>{props.bests.runs}</b></div>
+            </div>
           </div>
         </div>
 
@@ -98,7 +157,7 @@ export function LoadoutMenu(props: Props) {
 
         <div className="menu-grid">
           <section>
-            <h2>Primary weapon <em>P9 sidearm always holstered</em></h2>
+            <h2>Primary weapon <em>Choose your main armament</em></h2>
             <div className="card-row">
               {LOADOUTS.map(card => {
                 const spec = WEAPONS[card.id];
@@ -119,6 +178,28 @@ export function LoadoutMenu(props: Props) {
               })}
             </div>
 
+            <h2>Secondary sidearm <em>Reliable backup pistol</em></h2>
+            <div className="card-row two">
+              <button
+                type="button"
+                className={`pick-card${(loadout.secondary ?? "pistol") === "pistol" ? " selected" : ""}`}
+                onClick={() => props.onLoadout({ ...loadout, secondary: "pistol" as SecondaryKind })}
+              >
+                <b>{WEAPONS.pistol.name}</b>
+                <span className="pick-tag">9×19mm Para · 12 Rds</span>
+                <span className="pick-blurb">{WEAPONS.pistol.blurb}</span>
+              </button>
+              <button
+                type="button"
+                className={`pick-card${loadout.secondary === "deagle" ? " selected" : ""}`}
+                onClick={() => props.onLoadout({ ...loadout, secondary: "deagle" as SecondaryKind })}
+              >
+                <b>{WEAPONS.deagle.name}</b>
+                <span className="pick-tag">.50 AE Hand Cannon · 72 DMG</span>
+                <span className="pick-blurb">{WEAPONS.deagle.blurb}</span>
+              </button>
+            </div>
+
             {props.mode === "rescue" ? <>
               <h2>Rescue perk</h2>
               <div className="card-row three">
@@ -137,7 +218,7 @@ export function LoadoutMenu(props: Props) {
                 ))}
               </div>
             </> : <div className="competitive-note">
-              <b>FAIR PLAY</b> · No AI, hostage, vehicle, difficulty modifiers, armor perks or health regeneration. Your loadout and aim decide the fight.
+              <b>FAIR PLAY</b> · No AI, hostage, vehicle, difficulty modifiers, armor perks or health regeneration. Your loadout, weapon skins and aim decide the fight.
             </div>}
           </section>
 
@@ -184,10 +265,17 @@ export function LoadoutMenu(props: Props) {
             <button type="button" className="deploy-btn" onClick={props.onDeploy}>
               {props.mode === "deathmatch" ? "ENTER 5v5 ARENA →" : "DEPLOY FOR RESCUE →"}
             </button>
-            <p className="menu-muted">WASD move · Mouse look · LMB fire · RMB aim · E interact · R reload · 1–5 weapons · M mute</p>
+            <p className="menu-muted">WASD move · Mouse look · LMB fire · RMB aim · E interact · R reload · 1–8 weapons · M mute</p>
           </aside>
         </div>
       </div>
+
+      {/* CS:GO Crate Unboxing & Skin Arsenal Modal */}
+      <CrateModal
+        open={showCrates}
+        onClose={() => setShowCrates(false)}
+        onSkinEquipped={props.onRefreshSkin}
+      />
     </div>
   );
 }

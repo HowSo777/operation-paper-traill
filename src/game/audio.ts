@@ -143,9 +143,37 @@ class Sfx {
     this.blip(240, 0.05, 0.12, "sawtooth");
   }
 
+  shotDeagle(): void {
+    this.noise(0.18, 0.72, 1800);
+    this.blip(130, 0.12, 0.25, "sawtooth");
+  }
+
+  shotAwp(): void {
+    this.noise(0.38, 0.88, 750);
+    this.blip(70, 0.28, 0.32, "sawtooth");
+  }
+
+  shotP90(): void {
+    this.noise(0.08, 0.44, 3400);
+    this.blip(220, 0.04, 0.14, "sawtooth");
+  }
+
   shot(): void {
     this.noise(0.12, 0.5, 2600);
     this.blip(180, 0.07, 0.16, "sawtooth");
+  }
+
+  crateTick(): void {
+    this.blip(1600, 0.012, 0.08, "square");
+  }
+
+  crateWin(rarity: string = "milspec"): void {
+    const isGold = rarity === "special";
+    const isCovert = rarity === "covert";
+    const notes = isGold ? [523, 659, 784, 1046, 1318, 1568] : isCovert ? [440, 554, 659, 880] : [392, 523, 659];
+    notes.forEach((n, i) =>
+      window.setTimeout(() => this.blip(n, 0.18, isGold ? 0.22 : 0.16, "triangle"), i * 85),
+    );
   }
 
   enemyShot(distance: number): void {

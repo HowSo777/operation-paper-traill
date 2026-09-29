@@ -59,9 +59,12 @@ export type WeaponContext = { moving: boolean; sprinting: boolean; grounded: boo
 const ADS_POS: Record<WeaponKind, [number, number, number]> = {
   rifle: [0, -0.143, -0.52],
   smg: [0, -0.143, -0.48],
+  p90: [0, -0.143, -0.46],
   sniper: [0, -0.143, -0.52],
+  awp: [0, -0.143, -0.54],
   shotgun: [0, -0.143, -0.55],
   pistol: [0, -0.15, -0.38],
+  deagle: [0, -0.15, -0.40],
 };
 export class Weapon {
   group = new THREE.Group();
@@ -94,16 +97,19 @@ export class Weapon {
   set reserve(value: number) { this.inventory.get(this.kind)!.reserve = value; }
   get displayName(): string { return this.spec.name; }
   /** True when the view should be a clean optic view instead of a gun viewmodel. */
-  get scoped(): boolean { return this.aiming && this.kind === "sniper"; }
+  get scoped(): boolean { return this.aiming && (this.kind === "sniper" || this.kind === "awp"); }
   get canFire(): boolean { return this.cooldown <= 0 && !this.reloading && this.ammo > 0; }
-  setLoadout(primary: PrimaryKind): void {
+  setLoadout(primary: PrimaryKind, secondary: "pistol" | "deagle" = "pistol"): void {
     this.loadoutPrimary = primary;
     this.inventory = new Map<WeaponKind, AmmoState>([
       [primary, { ammo: WEAPONS[primary].magSize, reserve: WEAPONS[primary].reserve }],
-      ["pistol", { ammo: WEAPONS.pistol.magSize, reserve: WEAPONS.pistol.reserve }],
+      [secondary, { ammo: WEAPONS[secondary].magSize, reserve: WEAPONS[secondary].reserve }],
     ]);
     if (this.kind !== primary) this.switchForce(primary);
     this.reloading = false; this.reloadProgress = 0; this.cooldown = 0; this.aiming = false;
+  }
+  refreshSkinModel(): void {
+    this.switchForce(this.kind);
   }
   private switchForce(kind: WeaponKind): void {
     this.kind = kind; this.reloading = false; this.reloadProgress = 0; this.cooldown = .2;

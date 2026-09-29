@@ -82,4 +82,7 @@ export const ARENA_PICKUPS: PickupDef[] = [
   { id: "arena-east-ammo", kind: "ammo", pos: [34, 1.1, 12], yaw: 0 },
   { id: "arena-shotgun", kind: "shotgun", pos: [-3, 1.1, 21], yaw: 0.4 },
   { id: "arena-sniper", kind: "sniper", pos: [3, 1.1, -21], yaw: -0.4 },
+  { id: "arena-deagle", kind: "deagle", pos: [0, 6.4, 0], yaw: 0 },
+  { id: "arena-p90", kind: "p90", pos: [-14, 1.6, -12], yaw: 1.5 },
+  { id: "arena-awp", kind: "awp", pos: [26, 4.2, 0], yaw: -1.5 },
 ];

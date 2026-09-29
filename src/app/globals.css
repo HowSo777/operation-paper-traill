@@ -205,4 +205,4 @@ kbd{display:inline-grid;place-items:center;min-width:23px;height:24px;border:1px
 .grade-B{background:#fff;color:#111}
 .grade-C{background:#eee;color:#777;border-color:#999}
 .debrief-xp{font:12px ui-monospace,monospace;color:#8a6d00}
-@media(max-width:900px){.menu-grid{grid-template-columns:1fr}.mode-tabs{grid-template-columns:1fr}.mode-card{padding:9px 11px}.card-row{grid-template-columns:repeat(2,1fr)}.menu-bests{display:none}.xp-wrap{top:auto;bottom:64px}.team-scoreboard{top:10px;grid-template-columns:82px 120px 82px}.contracts{display:none}.killfeed{display:none}.minimap-wrap{transform:scale(.72);transform-origin:top right}}
+@media(max-width:900px){.menu-grid{grid-template-columns:1fr}.mode-tabs{grid-template-columns:1fr}.mode-card{padding:9px 11px}.card-row{grid-template-columns:repeat(2,1fr)}.menu-bests{display:none}.xp-wrap{top:50px;bottom:auto;transform:translateX(-50%) scale(0.85);z-index:5}.team-scoreboard{top:10px;grid-template-columns:82px 120px 82px}.contracts{display:none}.killfeed{display:none}.minimap-wrap{transform:scale(.72);transform-origin:top right}.weapon-slots{left:90px;bottom:14px;transform:none}}

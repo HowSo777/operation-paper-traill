@@ -147,7 +147,7 @@ export class Engine {
     this.weapon = new Weapon(this.viewCamera, (pitch, yaw) => {
       this.player.pitch = clamp(this.player.pitch + pitch, -1.5, 1.5); this.player.yaw += yaw;
     });
-    this.weapon.setLoadout(this.loadout.primary);
+    this.weapon.setLoadout(this.loadout.primary, this.loadout.secondary ?? "pistol");
     this.viewCamera.add(this.cockpit); this.cockpit.visible = false;
     this.pickups = new Pickups(this.scene, this.mode === "deathmatch" ? ARENA_PICKUPS : undefined);
     this.bike = new BikeController(this.solids);
@@ -323,7 +323,7 @@ export class Engine {
   applyLoadout(loadout: Loadout, difficulty: DifficultyId): void {
     this.loadout = loadout;
     this.difficultyId = difficulty;
-    this.weapon.setLoadout(loadout.primary);
+    this.weapon.setLoadout(loadout.primary, loadout.secondary ?? "pistol");
     this.applyPerkMods();
     hudStore.set({ loadout, difficulty, weaponKind: this.weapon.kind, weaponName: this.weapon.displayName, magazineSize: this.weapon.spec.magSize, inventory: [...this.weapon.inventory.keys()], ammo: this.weapon.ammo, reserve: this.weapon.reserve });
     this.updateHud();
@@ -500,12 +500,14 @@ export class Engine {
   }
 
   cycleWeapon(): void {
-    const order: import("./types").WeaponKind[] = ["rifle", "smg", "shotgun", "sniper", "pistol"];
-    const owned = order.filter(k => this.weapon.inventory.has(k));
+    const owned = SLOT_ORDER.filter(k => this.weapon.inventory.has(k));
     if (owned.length <= 1) return;
     const currentIdx = owned.indexOf(this.weapon.kind);
     const nextIdx = (currentIdx + 1) % owned.length;
     this.weapon.switch(owned[nextIdx]);
+  }
+  refreshWeaponSkin(): void {
+    this.weapon.refreshSkinModel();
   }
   private onContextMenu = (event: Event) => { if (event.target === this.options.canvas || document.pointerLockElement === this.options.canvas) event.preventDefault(); };
   private onMouseDown = (event: MouseEvent) => {
@@ -536,11 +538,11 @@ export class Engine {
       if (this.bike.riding) { this.resetRide(); return; }
       if (this.weapon.reload()) sfx.reload();
     }
-    const slot = ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5"].indexOf(event.code);
-    if (slot !== -1) {
+    const slot = ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8"].indexOf(event.code);
+    if (slot !== -1 && slot < SLOT_ORDER.length) {
       const kind: WeaponKind = SLOT_ORDER[slot];
       if (this.weapon.switch(kind)) { hudStore.message(`${WEAPONS[kind].name} equipped`); sfx.uiClick(); }
-      else if (!this.weapon.inventory.has(kind)) hudStore.message("Find this weapon in the compound");
+      else if (!this.weapon.inventory.has(kind)) hudStore.message("Weapon not in inventory");
     }
     this.updateHud();
   };
@@ -1063,6 +1065,10 @@ export class Engine {
     this.enemies.alertNear(origin, 20);
     if (this.weapon.kind === "shotgun") sfx.shotShotgun();
     else if (this.weapon.kind === "pistol") sfx.shotPistol();
+    else if (this.weapon.kind === "deagle") sfx.shotDeagle();
+    else if (this.weapon.kind === "awp") sfx.shotAwp();
+    else if (this.weapon.kind === "p90") sfx.shotP90();
+    else if (this.weapon.kind === "sniper") sfx.sniperShot(0);
     else sfx.shot();
     return true;
   }
