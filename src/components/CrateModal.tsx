@@ -129,16 +129,6 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
     }, 50);
   };
 
-  const handleClaimFreeCrate = () => {
-    const next: InventoryState = {
-      ...inv,
-      crates: inv.crates + 1,
-      keys: inv.keys + 1,
-    };
-    saveInventory(next);
-    setInv(next);
-    sfx.levelup();
-  };
 
   const handleEquip = (skin: WeaponSkin) => {
     setEquippedSkin(skin.weapon, skin.id);
@@ -193,14 +183,9 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
               <span className="px-2.5 py-1 rounded bg-neutral-800 border border-neutral-700">
                 🔑 KEYS: <b className="text-amber-400">{inv.keys}</b>
               </span>
-              <button
-                type="button"
-                onClick={handleClaimFreeCrate}
-                className="px-2 py-1 bg-green-700 hover:bg-green-600 text-white rounded text-[10px] font-bold"
-                title="Claim Match Reward Drop"
-              >
-                + DROP
-              </button>
+              <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-mono hidden sm:inline-block">
+                ★ EARN BY RANKING UP
+              </span>
             </div>
 
             <button

@@ -29,6 +29,8 @@ import {
   savePersistedSettings, saveTotalXp, streakText, type Bests, type ContractState,
 } from "./progression";
 import { aabbOverlap, actorBox, angleDelta, clamp, damp, hasLineOfSight, moveAndCollide, raycastBoxes } from "./collision";
+import { getRankForXp } from "./ranks";
+import { loadInventory, saveInventory } from "./skins";
 import type { MatchPayload, PlayerSnapshot } from "./protocol";
 import type { AABB, DifficultyId, GameMode, Loadout, TeamId, TeamOrSpectator, Vec3, WeaponKind } from "./types";
 
@@ -62,6 +64,7 @@ export class Engine {
   private finishing = false;
   private finishTimer = 0;
   private cockpit = makeBikeCockpit();
+  private scratchMuzzle = new THREE.Vector3();
   private tracers: Tracers;
   private enemyTracers: Tracers;
   private impacts: ImpactMarks;
@@ -621,6 +624,21 @@ export class Engine {
 
   private addScore(points: number, banner?: string): void {
     this.run.score += points;
+    if (this.mode === "deathmatch") {
+      const beforeRank = getRankForXp(this.totalXp).rank;
+      this.totalXp += points;
+      saveTotalXp(this.totalXp);
+      const afterRank = getRankForXp(this.totalXp).rank;
+      if (afterRank.tier > beforeRank.tier) {
+        const inv = loadInventory();
+        inv.crates += 1;
+        inv.keys += 1;
+        saveInventory(inv);
+        sfx.achievement();
+        hudStore.achievement(`PROMOTED: ${afterRank.name}`, "+1 Weapon Case & +1 Key earned!");
+        hudStore.banner(`RANK UP: ${afterRank.name}`, "+1 CASE & +1 KEY!");
+      }
+    }
     if (banner) hudStore.banner(banner, `+${points}`);
   }
 
@@ -674,11 +692,21 @@ export class Engine {
 
   private commitXp(multiplier: number): { gained: number; newLevel: number; leveled: boolean } {
     const gained = Math.round(this.run.score * this.difficulty().xpMul * multiplier);
+    const beforeRank = getRankForXp(this.totalXp).rank;
     const before = levelForXp(this.totalXp).level;
     this.totalXp += gained;
     saveTotalXp(this.totalXp);
     const after = levelForXp(this.totalXp);
-    if (after.level > before) {
+    const afterRank = getRankForXp(this.totalXp).rank;
+    if (afterRank.tier > beforeRank.tier) {
+      const inv = loadInventory();
+      inv.crates += 1;
+      inv.keys += 1;
+      saveInventory(inv);
+      sfx.achievement();
+      hudStore.achievement(`PROMOTED: ${afterRank.name}`, "Rank Reward: +1 Weapon Case & +1 Key unlocked!");
+      hudStore.banner(`RANK UP: ${afterRank.name}`, "+1 CASE & +1 KEY UNLOCKED!");
+    } else if (after.level > before) {
       sfx.levelup();
       hudStore.achievement(`LEVEL ${after.level}`, "Operative rank increased");
     }
@@ -916,10 +944,31 @@ export class Engine {
     this.camera.rotation.set(player.pitch + (Math.random() - .5) * shake * 0.02, player.yaw, this.bike.riding ? this.bike.lean * .38 : 0);
     const fov = this.bike.riding ? 68 + Math.abs(this.bike.speed) * .15 : this.weapon.aiming ? this.weapon.spec.zoom : 68;
     this.camera.fov = dt ? damp(this.camera.fov, fov, 11, dt) : fov; this.camera.updateProjectionMatrix(); this.camera.updateMatrixWorld(true);
-    // A clean optic view must not render the first-person gun over the scope.
-    this.weapon.group.visible = !this.weapon.scoped;
-    this.cockpit.visible = this.bike.riding;
-    this.cockpit.rotation.z = this.bike.lean * .2; this.cockpit.rotation.y = -this.bike.steering * .07;
+    // A clean optic view must not render the first-person gun over the scope or when riding the motorcycle.
+    this.weapon.group.visible = !this.weapon.scoped && !this.bike.riding;
+    // Decoupled motorcycle cockpit: handlebars stay anchored to bike chassis and heading,
+    // allowing the rider to look freely around in 3D without handlebars turning with the head.
+    if (this.bike.riding) {
+      const relYaw = angleDelta(player.yaw, this.bike.yaw);
+      const inFront = Math.cos(relYaw) > -0.2;
+      this.cockpit.visible = inFront;
+      if (inFront) {
+        const dist = 0.95;
+        this.cockpit.position.set(
+          -Math.sin(relYaw) * dist,
+          -0.28 + player.pitch * 0.45,
+          -Math.cos(relYaw) * dist
+        );
+        this.cockpit.rotation.order = "YXZ";
+        this.cockpit.rotation.set(
+          -player.pitch,
+          relYaw - this.bike.steering * 0.15,
+          this.bike.lean * 0.25
+        );
+      }
+    } else {
+      this.cockpit.visible = false;
+    }
     this.viewCamera.updateMatrixWorld(true);
     this.world.bike.visible = !this.bike.riding;
     this.world.bike.position.set(...this.bike.pos); this.world.bike.rotation.set(0, this.bike.yaw, this.bike.lean);
@@ -999,9 +1048,9 @@ export class Engine {
     const moving = Math.hypot(this.player.vel[0], this.player.vel[2]) > .5;
     const ridePenalty = this.bike.riding ? 2.4 : 1;
     const spread = this.weapon.spread(moving, this.player.sprinting || this.bike.riding) * ridePenalty;
-    const muzzle = new THREE.Vector3(); this.weapon.muzzle.getWorldPosition(muzzle);
-    muzzle.applyQuaternion(this.camera.quaternion).add(this.camera.position);
-    const muzzlePos: Vec3 = [muzzle.x, muzzle.y, muzzle.z];
+    this.weapon.muzzle.getWorldPosition(this.scratchMuzzle);
+    this.scratchMuzzle.applyQuaternion(this.camera.quaternion).add(this.camera.position);
+    const muzzlePos: Vec3 = [this.scratchMuzzle.x, this.scratchMuzzle.y, this.scratchMuzzle.z];
     this.particles.burst(muzzlePos, { count: spec.pellets > 1 ? 10 : 5, color: 0xe8a020, color2: 0x555555, speed: 3, up: 1, life: 0.25, gravity: 4 });
     this.trauma = Math.min(1, this.trauma + (this.weapon.kind === "sniper" ? 0.16 : this.weapon.kind === "shotgun" ? 0.2 : 0.05));
     let anyHit = false;
@@ -1030,7 +1079,9 @@ export class Engine {
         } else if (target.kind === "player") this.net.sendHit(target.id, spec.damage);
         else {
           const headshot = enemy?.headshot ?? false;
-          const mult = headshot ? (this.weapon.kind === "shotgun" ? 1.5 : 3) : 1;
+          const isLeg = enemy ? (target.point[1] - enemy.pos[1] < 0.72) : false;
+          let mult = headshot ? (this.weapon.kind === "shotgun" ? 1.5 : 3) : 1;
+          if (this.weapon.kind === "awp" && isLeg) mult = 85 / spec.damage; // AWP leg shot deals 85 dmg (target survives at 100 HP)
           const result = this.enemies.damage(target.id, spec.damage * mult);
           if (headshot) sfx.headshot(); else sfx.hit();
           this.particles.burst(end, { count: 5, color: 0xc1121f, color2: 0x555555, speed: 3.5, life: 0.45 });

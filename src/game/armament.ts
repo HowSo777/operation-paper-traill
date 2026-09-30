@@ -22,7 +22,7 @@ export const WEAPONS: Record<WeaponKind, WeaponSpec> = {
   smg: { name: "MP5", short: "MP5", calibre: "9 × 19", damage: 24, pellets: 1, auto: true, magSize: 30, reserve: 150, interval: 0.075, reloadTime: 1.55, spread: 0.012, recoil: 0.005, zoom: 60, blurb: "Bullet hose. Melts rooms and riders up close." },
   p90: { name: "P90", short: "P90", calibre: "5.7 × 28", damage: 22, pellets: 1, auto: true, magSize: 50, reserve: 150, interval: 0.065, reloadTime: 2.1, spread: 0.014, recoil: 0.004, zoom: 60, blurb: "50-round bullpup submachine gun. Relentless spray and mob suppression." },
   sniper: { name: "SVD", short: "SVD", calibre: "7.62 × 54", damage: 125, pellets: 1, auto: false, magSize: 10, reserve: 40, interval: 0.9, reloadTime: 2.5, spread: 0.0009, recoil: 0.027, zoom: 26, blurb: "One shot, one kill. Scoped precision." },
-  awp: { name: "AWP", short: "AWP", calibre: ".338 Lapua", damage: 175, pellets: 1, auto: false, magSize: 5, reserve: 25, interval: 1.25, reloadTime: 2.8, spread: 0.0004, recoil: 0.045, zoom: 18, blurb: "High risk, high reward. Devastating one-shot bolt-action sniper rifle." },
+  awp: { name: "AWP", short: "AWP", calibre: ".338 Lapua", damage: 115, pellets: 1, auto: false, magSize: 5, reserve: 25, interval: 1.25, reloadTime: 2.8, spread: 0.0004, recoil: 0.045, zoom: 18, blurb: "High risk, high reward. 1-shot torso/head kill; leg shots deal 85 damage." },
   shotgun: { name: "M870 Breacher", short: "M870", calibre: "12 gauge", damage: 13, pellets: 8, auto: false, magSize: 6, reserve: 42, interval: 0.95, reloadTime: 2.3, spread: 0.035, recoil: 0.03, zoom: 60, blurb: "Eight pellets of diplomacy. Devastating close up." },
   pistol: { name: "P9 Sidearm", short: "P9", calibre: "9 × 19", damage: 22, pellets: 1, auto: false, magSize: 12, reserve: 72, interval: 0.22, reloadTime: 1.4, spread: 0.009, recoil: 0.007, zoom: 62, blurb: "Trusty fallback. Always in your holster." },
   deagle: { name: "Desert Eagle", short: "DEAGLE", calibre: ".50 AE", damage: 72, pellets: 1, auto: false, magSize: 7, reserve: 35, interval: 0.32, reloadTime: 1.75, spread: 0.007, recoil: 0.032, zoom: 62, blurb: "Hand cannon. Brutal stopping power and skull-cracking punch." },
@@ -43,7 +43,7 @@ export const LOADOUTS: LoadoutCard[] = [
   { id: "p90", tagline: "50-Round Spray", stats: { damage: 2, rpm: 5, range: 3, control: 4 } },
   { id: "shotgun", tagline: "Breacher", stats: { damage: 5, rpm: 1, range: 1, control: 2 } },
   { id: "sniper", tagline: "Marksman", stats: { damage: 4, rpm: 2, range: 5, control: 2 } },
-  { id: "awp", tagline: "One-Shot Heavy", stats: { damage: 5, rpm: 1, range: 5, control: 1 } },
+  { id: "awp", tagline: "Bolt-Action Precision", stats: { damage: 5, rpm: 1, range: 5, control: 1 } },
 ];
 
 export type PerkDef = { id: PerkId; name: string; desc: string };
@@ -81,7 +81,7 @@ export const PICKUP_SPAWNS: PickupDef[] = [
  */
 export function weaponMoveMultiplier(kind: WeaponKind, aiming: boolean): number {
   if (kind !== "sniper" && kind !== "awp") return 1;
-  return aiming ? 0.5 : 0.75;
+  return aiming ? 0.45 : 0.75;
 }
 
 export function shotSpread(
@@ -89,10 +89,14 @@ export function shotSpread(
   opts: { aiming: boolean; moving: boolean; sprinting: boolean; grounded: boolean },
 ): number {
   const spec = WEAPONS[kind];
-  const isSniper = kind === "sniper" || kind === "awp";
+  if (kind === "awp") {
+    // When aiming through optic: surgical precision
+    if (opts.aiming) return spec.spread * 0.02;
+    // When not aiming (no-scope hip fire): massive CS:GO bloom
+    return 0.16 + (opts.moving ? 0.09 : 0) + (opts.sprinting ? 0.14 : 0) + (opts.grounded ? 0 : 0.09);
+  }
+  const isSniper = kind === "sniper";
   if (opts.aiming) return spec.spread * (isSniper ? 0.04 : 0.22);
-  // Precision sniper rifles only through optic. Shoulder/hip fire has
-  // a wide cone, made worse by movement, sprinting and being airborne.
   if (isSniper) {
     return 0.045 + (opts.moving ? 0.02 : 0) + (opts.sprinting ? 0.04 : 0) + (opts.grounded ? 0 : 0.03);
   }

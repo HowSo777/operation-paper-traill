@@ -1,6 +1,4 @@
-import { db } from "@/db";
-import { missionRuns } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { serverDb } from "@/db/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -24,26 +22,8 @@ function sanitiseDifficulty(value: unknown): string {
 
 /** Top exfils ranked by score. */
 export async function GET() {
-  if (!db) {
-    return Response.json({ runs: [] }, { status: 200 });
-  }
   try {
-    const runs = await db
-      .select({
-        id: missionRuns.id,
-        playerName: missionRuns.playerName,
-        result: missionRuns.result,
-        kills: missionRuns.kills,
-        timeMs: missionRuns.timeMs,
-        accuracy: missionRuns.accuracy,
-        score: missionRuns.score,
-        difficulty: missionRuns.difficulty,
-      })
-      .from(missionRuns)
-      .where(eq(missionRuns.result, "accomplished"))
-      .orderBy(desc(missionRuns.score), missionRuns.timeMs)
-      .limit(20);
-
+    const runs = await serverDb.getLeaderboard(20);
     return Response.json({ runs });
   } catch (error) {
     console.error("leaderboard read failed", error);
@@ -52,32 +32,40 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!db) {
-    return Response.json({ ok: true, id: null, saved: false });
-  }
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return Response.json({ ok: false, error: "invalid json" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const body = (payload ?? {}) as Record<string, unknown>;
-  const row = {
-    playerName: sanitiseName(body.playerName),
-    result: body.result === "killed" ? "killed" : "accomplished",
-    kills: sanitiseInt(body.kills, 999),
-    timeMs: sanitiseInt(body.timeMs, 1000 * 60 * 60),
-    accuracy: sanitiseInt(body.accuracy, 100),
-    score: sanitiseInt(body.score, 999999),
-    difficulty: sanitiseDifficulty(body.difficulty),
-  };
+  if (typeof payload !== "object" || payload === null) {
+    return Response.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const p = payload as Record<string, unknown>;
+  const playerName = sanitiseName(p.playerName);
+  const result = p.result === "failed" ? "failed" : "accomplished";
+  const kills = sanitiseInt(p.kills, 500);
+  const timeMs = sanitiseInt(p.timeMs, 3_600_000);
+  const accuracy = sanitiseInt(p.accuracy, 100);
+  const score = sanitiseInt(p.score, 100_000);
+  const difficulty = sanitiseDifficulty(p.difficulty);
 
   try {
-    const inserted = await db.insert(missionRuns).values(row).returning({ id: missionRuns.id });
-    return Response.json({ ok: true, id: inserted[0]?.id ?? null });
+    const saved = await serverDb.insertMissionRun({
+      playerName,
+      result,
+      kills,
+      timeMs,
+      accuracy,
+      score,
+      difficulty,
+    });
+
+    return Response.json({ ok: true, id: saved.id, saved: true });
   } catch (error) {
     console.error("leaderboard write failed", error);
-    return Response.json({ ok: false }, { status: 200 });
+    return Response.json({ error: "Could not save run" }, { status: 500 });
   }
 }

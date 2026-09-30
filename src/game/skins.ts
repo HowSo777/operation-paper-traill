@@ -297,8 +297,8 @@ export interface InventoryState {
 const STORAGE_KEY = "papertrail.csgo.inventory.v1";
 
 export const DEFAULT_INVENTORY: InventoryState = {
-  crates: 3, // Start with 3 free cases to open!
-  keys: 3,
+  crates: 1, // Start with 1 starter crate and 1 key! Additional crates earned via rank promotions.
+  keys: 1,
   unlockedSkinIds: [
     "rifle_default", "awp_default", "deagle_default", "smg_default",
     "p90_default", "shotgun_default", "sniper_default", "pistol_default",
@@ -322,8 +322,8 @@ export function loadInventory(): InventoryState {
     if (!raw) return DEFAULT_INVENTORY;
     const parsed = JSON.parse(raw);
     return {
-      crates: Math.max(0, Number(parsed.crates) ?? 3),
-      keys: Math.max(0, Number(parsed.keys) ?? 3),
+      crates: Math.max(0, Number(parsed.crates) ?? 1),
+      keys: Math.max(0, Number(parsed.keys) ?? 1),
       unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds : DEFAULT_INVENTORY.unlockedSkinIds,
       equippedSkins: { ...DEFAULT_INVENTORY.equippedSkins, ...(parsed.equippedSkins ?? {}) },
     };

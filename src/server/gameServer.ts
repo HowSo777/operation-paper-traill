@@ -5,16 +5,31 @@ import { PLAYER_SPAWN, TEAM_CAPACITY, TEAM_RESPAWN_SECONDS, WORLD, getShotBlocke
 import { ARENA, getArenaBlockers } from "@/game/arena";
 import { WEAPONS } from "@/game/armament";
 import { spawnFor, chooseTeam, freshScore, winningTeam, type TeamScore } from "@/game/teams";
-import { actorBox, rayAabb, raycastBoxes } from "@/game/collision";
+import { actorBox, hasLineOfSight, rayAabb, raycastBoxes } from "@/game/collision";
+import { serverDb } from "@/db/storage";
 import {
   ROOM_RESCUE, ROOM_DEATHMATCH,
   type ClientToServerEvents, type MatchPayload, type PlayerSnapshot, type ServerToClientEvents,
 } from "@/game/protocol";
-import type { GameMode, TeamId, TeamOrSpectator, Vec3 } from "@/game/types";
+import type { GameMode, TeamId, TeamOrSpectator, Vec3, WeaponKind } from "@/game/types";
 
 type ServerPlayer = PlayerSnapshot & {
   lastShot: number; shotOrigin: Vec3; shotDir: Vec3; hitUsed: boolean; graceUntil: number;
+  isBot?: boolean;
+  targetWaypoint?: Vec3;
+  nextShot?: number;
+  strafeDir?: number;
 };
+
+const BOT_NAMES = ["BOT Viper", "BOT Ghost", "BOT Razor", "BOT Apex", "BOT Titan", "BOT Shadow", "BOT Cobra", "BOT Phantom"];
+const BOT_WEAPONS: WeaponKind[] = ["rifle", "p90", "smg", "rifle", "awp", "deagle"];
+const BOT_WAYPOINTS: Vec3[] = [
+  [-30, 0, 20], [-18, 0, 24], [0, 0, 22], [18, 0, 20], [30, 0, 18],
+  [-30, 0, -18], [-18, 0, -20], [0, 0, -22], [18, 0, -24], [30, 0, -20],
+  [-15, 0, 0], [0, 0, 8], [0, 0, -8], [15, 0, 0],
+  [-22, 0, 10], [22, 0, -10], [-8, 0, -14], [8, 0, 14],
+];
+const TARGET_PLAYERS_PER_TEAM = 2;
 const number = (value: unknown, min: number, max: number, fallback = 0) =>
   typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const position = (value: unknown, old: Vec3, mode: GameMode): Vec3 => {
@@ -76,6 +91,10 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
     p.riding = false;
     p.graceUntil = Date.now() + 2800;
     p.protected = true;
+    if (p.isBot) {
+      p.targetWaypoint = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
+      p.nextShot = Date.now() + 1500;
+    }
   };
   const resetRound = () => {
     score = { ...freshScore(), round: score.round + 1 };
@@ -83,7 +102,196 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       p.kills = 0; p.deaths = 0;
       respawn(p);
     }
+    balanceBots();
     broadcastMatch();
+  };
+
+  let botSeq = 0;
+  const spawnBot = (team: TeamId): ServerPlayer => {
+    botSeq++;
+    const botId = `bot_${team}_${botSeq}`;
+    const name = BOT_NAMES[(botSeq) % BOT_NAMES.length];
+    const spawnIndex = (team === "blue" ? teamCounts().blue : teamCounts().red) % TEAM_CAPACITY;
+    const pos = spawnFor(team, spawnIndex);
+    const weapon = BOT_WEAPONS[botSeq % BOT_WEAPONS.length];
+    const bot: ServerPlayer = {
+      id: botId,
+      name,
+      pos: [...pos],
+      yaw: team === "blue" ? -Math.PI / 4 : Math.PI * 3 / 4,
+      pitch: 0,
+      hp: 100,
+      alive: true,
+      moving: false,
+      kills: 0,
+      deaths: 0,
+      team,
+      mode: "deathmatch",
+      riding: false,
+      weapon,
+      protected: true,
+      lastShot: 0,
+      shotOrigin: [0, 0, 0],
+      shotDir: [0, 0, -1],
+      hitUsed: false,
+      graceUntil: Date.now() + 2500,
+      isBot: true,
+      targetWaypoint: BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)],
+      nextShot: Date.now() + 1200 + Math.random() * 800,
+      strafeDir: Math.random() > 0.5 ? 1 : -1,
+    };
+    players.set(bot.id, bot);
+    io.to(ROOM_DEATHMATCH).emit("playerJoined", snapshot(bot));
+    return bot;
+  };
+
+  const balanceBots = () => {
+    const dmPlayers = inMode("deathmatch");
+    const humanPlayers = dmPlayers.filter(p => !p.isBot && p.team !== "spectator");
+    if (humanPlayers.length === 0) {
+      // Empty lobby: clear all bots to avoid CPU usage
+      for (const p of dmPlayers.filter(p => p.isBot)) {
+        players.delete(p.id);
+        io.to(ROOM_DEATHMATCH).emit("playerLeft", { id: p.id });
+      }
+      return;
+    }
+
+    // Real players are present: ensure TARGET_PLAYERS_PER_TEAM on both Blue & Red
+    for (const team of ["blue", "red"] as TeamId[]) {
+      const teamHumans = dmPlayers.filter(p => !p.isBot && p.team === team);
+      const teamBots = dmPlayers.filter(p => p.isBot && p.team === team);
+      const neededBots = Math.max(0, TARGET_PLAYERS_PER_TEAM - teamHumans.length);
+
+      if (teamBots.length > neededBots) {
+        // Human joined: remove excess bot to make room
+        const toKick = teamBots.slice(0, teamBots.length - neededBots);
+        for (const bot of toKick) {
+          players.delete(bot.id);
+          io.to(ROOM_DEATHMATCH).emit("playerLeft", { id: bot.id });
+        }
+      } else if (teamBots.length < neededBots) {
+        // Backfill with bots so teams are always balanced
+        const toAdd = neededBots - teamBots.length;
+        for (let i = 0; i < toAdd; i++) {
+          spawnBot(team);
+        }
+      }
+    }
+  };
+
+  const updateBots = () => {
+    const bots = inMode("deathmatch").filter(p => p.isBot && p.alive);
+    if (bots.length === 0) return;
+    const now = Date.now();
+    const blockers = getArenaBlockers();
+
+    for (const bot of bots) {
+      if (bot.protected && now > bot.graceUntil) {
+        bot.protected = false;
+      }
+
+      // Check opposing enemies
+      const enemies = inMode("deathmatch").filter(p => p.team !== bot.team && p.team !== "spectator" && p.alive && !p.protected);
+      let closestEnemy: ServerPlayer | null = null;
+      let closestDist = Infinity;
+      const botEye: Vec3 = [bot.pos[0], bot.pos[1] + 1.5, bot.pos[2]];
+
+      for (const enemy of enemies) {
+        const d = Math.hypot(enemy.pos[0] - bot.pos[0], enemy.pos[2] - bot.pos[2]);
+        if (d < closestDist && d < 42) {
+          const enemyEye: Vec3 = [enemy.pos[0], enemy.pos[1] + 1.4, enemy.pos[2]];
+          if (hasLineOfSight(botEye, enemyEye, blockers)) {
+            closestDist = d;
+            closestEnemy = enemy;
+          }
+        }
+      }
+
+      if (closestEnemy) {
+        const dx = closestEnemy.pos[0] - bot.pos[0];
+        const dz = closestEnemy.pos[2] - bot.pos[2];
+        const targetYaw = Math.atan2(-dx, -dz);
+        bot.yaw = targetYaw;
+        const dy = (closestEnemy.pos[1] + 1.2) - botEye[1];
+        bot.pitch = Math.atan2(dy, closestDist);
+
+        // Combat strafing
+        bot.moving = true;
+        bot.pos[0] += Math.cos(targetYaw) * 0.08 * (bot.strafeDir ?? 1);
+        bot.pos[2] += Math.sin(targetYaw) * 0.08 * (bot.strafeDir ?? 1);
+
+        if (Math.random() < 0.04) bot.strafeDir = (bot.strafeDir ?? 1) * -1;
+
+        if (now >= (bot.nextShot ?? 0)) {
+          const spec = WEAPONS[bot.weapon ?? "rifle"];
+          bot.nextShot = now + Math.max(300, spec.interval * 1000 * (1.1 + Math.random() * 0.6));
+          const spread = 0.045;
+          const shotDir: Vec3 = [
+            (dx / closestDist) + (Math.random() - 0.5) * spread,
+            (dy / closestDist) + (Math.random() - 0.5) * spread,
+            (dz / closestDist) + (Math.random() - 0.5) * spread,
+          ];
+          const dirLen = Math.hypot(...shotDir);
+          const normDir: Vec3 = [shotDir[0] / dirLen, shotDir[1] / dirLen, shotDir[2] / dirLen];
+
+          io.to(ROOM_DEATHMATCH).emit("playerShot", { id: bot.id, origin: botEye, dir: normDir });
+
+          const hit = rayAabb(botEye, normDir, actorBox(closestEnemy.pos, [.5, 0, .5], 1.85), 180);
+          if (hit && !raycastBoxes(botEye, normDir, blockers, Math.max(0, hit.t - 0.1))) {
+            const relY = hit.point[1] - closestEnemy.pos[1];
+            let damage = spec.damage * (spec.pellets > 1 ? 5 : 1);
+            if (bot.weapon === "awp") {
+              if (relY < 0.72) damage = 85;
+              else if (relY >= 1.45) damage = 220;
+              else damage = 115;
+            } else {
+              if (relY >= 1.45) damage = Math.round(damage * 2.2);
+              else if (relY < 0.72) damage = Math.round(damage * 0.75);
+            }
+
+            closestEnemy.hp = Math.max(0, closestEnemy.hp - damage);
+            io.to(ROOM_DEATHMATCH).emit("playerHurt", { id: closestEnemy.id, hp: closestEnemy.hp, byId: bot.id, damage });
+
+            if (closestEnemy.hp === 0) {
+              closestEnemy.alive = false;
+              closestEnemy.deaths += 1;
+              bot.kills += 1;
+              const winnerTeam = bot.team as TeamId;
+              score[winnerTeam] += 1;
+              const winner = winningTeam(score);
+              if (winner) score.ended = true;
+              io.to(ROOM_DEATHMATCH).emit("playerDied", {
+                victimId: closestEnemy.id, killerId: bot.id, killerName: bot.name, victimName: closestEnemy.name, team: closestEnemy.team, score: { ...score },
+              });
+              broadcastMatch();
+              if (winner) {
+                io.to(ROOM_DEATHMATCH).emit("roundEnded", { winner, score: { ...score } });
+                later(resetRound, 4500);
+              } else {
+                later(() => respawn(closestEnemy!), TEAM_RESPAWN_SECONDS * 1000);
+              }
+            }
+          }
+        }
+      } else {
+        if (!bot.targetWaypoint) {
+          bot.targetWaypoint = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
+        }
+        const toX = bot.targetWaypoint[0] - bot.pos[0];
+        const toZ = bot.targetWaypoint[2] - bot.pos[2];
+        const wpDist = Math.hypot(toX, toZ);
+        if (wpDist < 2.0) {
+          bot.targetWaypoint = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
+        } else {
+          bot.yaw = Math.atan2(-toX, -toZ);
+          bot.pitch = 0;
+          bot.pos[0] += (-Math.sin(bot.yaw)) * 0.16;
+          bot.pos[2] += (-Math.cos(bot.yaw)) * 0.16;
+          bot.moving = true;
+        }
+      }
+    }
   };
 
   const isServer = typeof portOrServer === "object" && portOrServer !== null;
@@ -124,7 +332,10 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
     players.set(p.id, p);
     socket.emit("init", { id: p.id, players: inMode(mode).map(snapshot), tick: now, match: match(mode, team) });
     socket.to(room).emit("playerJoined", snapshot(p));
-    if (mode === "deathmatch") broadcastMatch();
+    if (mode === "deathmatch") {
+      balanceBots();
+      broadcastMatch();
+    }
 
     socket.on("hello", payload => {
       p.name = (typeof payload?.name === "string" ? payload.name : "OPERATIVE").replace(/[^\w -]/g, "").slice(0, 14) || "OPERATIVE";
@@ -162,16 +373,30 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       if (!hit || raycastBoxes(p.shotOrigin, p.shotDir, getArenaBlockers(), Math.max(0, hit.t - .1))) return;
       p.hitUsed = true;
       const weapon = WEAPONS[p.weapon ?? "rifle"];
-      // The client raycasts each pellet but sends one server-confirmed target.
-      // A close shotgun cluster therefore deals five-pellet damage, while every
-      // other weapon uses its exact listed damage.
-      const damage = weapon.damage * (weapon.pellets > 1 ? 5 : 1);
+      const relY = hit.point[1] - target.pos[1];
+      let damage = weapon.damage * (weapon.pellets > 1 ? 5 : 1);
+      if (p.weapon === "awp") {
+        if (relY < 0.72) damage = 85; // Leg shot: 85 dmg (target survives 100 HP)
+        else if (relY >= 1.45) damage = 220; // Headshot
+        else damage = 115; // Torso 1-shot kill
+      } else {
+        if (relY >= 1.45) damage = Math.round(damage * 2.2); // Headshot multiplier
+        else if (relY < 0.72) damage = Math.round(damage * 0.75); // Leg shot penalty
+      }
       target.hp = Math.max(0, target.hp - damage);
       io.to(ROOM_DEATHMATCH).emit("playerHurt", { id: target.id, hp: target.hp, byId: p.id, damage });
       if (target.hp !== 0) return;
       target.alive = false;
       target.deaths += 1;
       p.kills += 1;
+      if (!p.isBot) {
+        const prof = serverDb.getProfile(p.name);
+        serverDb.saveProfile({
+          callsign: p.name,
+          kills: (prof?.kills ?? 0) + 1,
+          totalXp: (prof?.totalXp ?? 0) + 100,
+        });
+      }
       const winnerTeam = p.team as TeamId;
       score[winnerTeam] += 1;
       const winner = winningTeam(score);
@@ -181,6 +406,15 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       });
       broadcastMatch();
       if (winner) {
+        serverDb.recordMatch({
+          id: `match_${Date.now()}`,
+          mode: "deathmatch",
+          blueScore: score.blue,
+          redScore: score.red,
+          winningTeam: winner,
+          durationSeconds: 180,
+          timestamp: new Date().toISOString(),
+        });
         io.to(ROOM_DEATHMATCH).emit("roundEnded", { winner, score: { ...score } });
         later(resetRound, 4500);
       } else later(() => respawn(target), TEAM_RESPAWN_SECONDS * 1000);
@@ -195,11 +429,15 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
     socket.on("disconnect", () => {
       players.delete(p.id);
       socket.to(room).emit("playerLeft", { id: p.id });
-      if (mode === "deathmatch") broadcastMatch();
+      if (mode === "deathmatch") {
+        balanceBots();
+        broadcastMatch();
+      }
     });
   });
 
   const timer = setInterval(() => {
+    updateBots();
     if (inMode("rescue").length) io.to(ROOM_RESCUE).emit("snapshot", { players: inMode("rescue").map(snapshot), tick: Date.now(), match: match("rescue") });
     if (inMode("deathmatch").length) io.to(ROOM_DEATHMATCH).emit("snapshot", { players: inMode("deathmatch").map(snapshot), tick: Date.now(), match: match("deathmatch") });
   }, 50);

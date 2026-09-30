@@ -11,12 +11,16 @@ interface Props {
 export function MobileControls({ engine, active }: Props) {
   const [isTouch, setIsTouch] = useState(false);
   const [joystickActive, setJoystickActive] = useState(false);
-  const [joystickPos, setJoystickPos] = useState({ startX: 0, startY: 0, currX: 0, currY: 0 });
   const [aiming, setAiming] = useState(false);
   const [firing, setFiring] = useState(false);
-  const [fireStickOffset, setFireStickOffset] = useState({ x: 0, y: 0 });
 
+  // Left virtual joystick refs
   const moveTouchId = useRef<number | null>(null);
+  const joystickStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const joystickBaseRef = useRef<HTMLDivElement>(null);
+  const joystickKnobRef = useRef<HTMLDivElement>(null);
+
+  // Look swipe refs
   const lookTouchId = useRef<number | null>(null);
   const lastLookPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -24,6 +28,7 @@ export function MobileControls({ engine, active }: Props) {
   const fireTouchId = useRef<number | null>(null);
   const fireLastPos = useRef<{ x: number; y: number } | null>(null);
   const fireStartPos = useRef<{ x: number; y: number } | null>(null);
+  const fireKnobRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkTouch = () => {
@@ -42,12 +47,17 @@ export function MobileControls({ engine, active }: Props) {
       const t = e.changedTouches[i];
       if (moveTouchId.current === null && t.clientX < window.innerWidth * 0.5) {
         moveTouchId.current = t.identifier;
+        joystickStartPos.current = { x: t.clientX, y: t.clientY };
         setJoystickActive(true);
-        setJoystickPos({
-          startX: t.clientX,
-          startY: t.clientY,
-          currX: t.clientX,
-          currY: t.clientY,
+        // Position base directly
+        requestAnimationFrame(() => {
+          if (joystickBaseRef.current) {
+            joystickBaseRef.current.style.left = `${t.clientX}px`;
+            joystickBaseRef.current.style.top = `${t.clientY}px`;
+          }
+          if (joystickKnobRef.current) {
+            joystickKnobRef.current.style.transform = "translate3d(0, 0, 0)";
+          }
         });
         break;
       }
@@ -59,26 +69,30 @@ export function MobileControls({ engine, active }: Props) {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
       if (t.identifier === moveTouchId.current) {
-        const dx = t.clientX - joystickPos.startX;
-        const dy = t.clientY - joystickPos.startY;
+        const dx = t.clientX - joystickStartPos.current.x;
+        const dy = t.clientY - joystickStartPos.current.y;
         const maxDist = 48;
         const dist = Math.hypot(dx, dy);
         const clampedDist = Math.min(dist, maxDist);
         const angle = Math.atan2(dy, dx);
-        
-        const knobX = joystickPos.startX + Math.cos(angle) * clampedDist;
-        const knobY = joystickPos.startY + Math.sin(angle) * clampedDist;
-        setJoystickPos(prev => ({ ...prev, currX: knobX, currY: knobY }));
 
-        const normX = clampedDist > 5 ? (Math.cos(angle) * clampedDist) / maxDist : 0;
-        const normY = clampedDist > 5 ? (Math.sin(angle) * clampedDist) / maxDist : 0;
+        const offX = Math.cos(angle) * clampedDist;
+        const offY = Math.sin(angle) * clampedDist;
+
+        // Direct hardware-accelerated transform avoids React re-render lag
+        if (joystickKnobRef.current) {
+          joystickKnobRef.current.style.transform = `translate3d(${offX}px, ${offY}px, 0)`;
+        }
+
+        const normX = clampedDist > 5 ? offX / maxDist : 0;
+        const normY = clampedDist > 5 ? offY / maxDist : 0;
 
         // In game: forward is -Y, strafe is +X
         engine.mobileMove(-normY, normX);
         break;
       }
     }
-  }, [engine, joystickPos.startX, joystickPos.startY]);
+  }, [engine]);
 
   const handleMoveEnd = useCallback((e: TouchEvent) => {
     if (!engine || moveTouchId.current === null) return;
@@ -88,6 +102,9 @@ export function MobileControls({ engine, active }: Props) {
         moveTouchId.current = null;
         setJoystickActive(false);
         engine.mobileMove(0, 0);
+        if (joystickKnobRef.current) {
+          joystickKnobRef.current.style.transform = "translate3d(0, 0, 0)";
+        }
         break;
       }
     }
@@ -114,8 +131,8 @@ export function MobileControls({ engine, active }: Props) {
         const dx = t.clientX - lastLookPos.current.x;
         const dy = t.clientY - lastLookPos.current.y;
         lastLookPos.current = { x: t.clientX, y: t.clientY };
-        
-        // Scale touch sensitivity
+
+        // Scale touch sensitivity smoothly
         engine.mobileLook(dx * 1.35, dy * 1.35);
         break;
       }
@@ -145,7 +162,9 @@ export function MobileControls({ engine, active }: Props) {
         fireStartPos.current = { x: t.clientX, y: t.clientY };
         fireLastPos.current = { x: t.clientX, y: t.clientY };
         setFiring(true);
-        setFireStickOffset({ x: 0, y: 0 });
+        if (fireKnobRef.current) {
+          fireKnobRef.current.style.transform = "translate3d(0, 0, 0)";
+        }
         engine.setMobileFire(true);
         break;
       }
@@ -164,18 +183,17 @@ export function MobileControls({ engine, active }: Props) {
         // Steer camera aim while shooting with smooth mobile sensitivity
         engine.mobileLook(dx * 1.35, dy * 1.35);
 
-        // Update visual analogue stick knob clamped to max radius 30px
-        if (fireStartPos.current) {
+        // Update visual analogue stick knob clamped to max radius 32px directly via DOM ref
+        if (fireStartPos.current && fireKnobRef.current) {
           const totalDx = t.clientX - fireStartPos.current.x;
           const totalDy = t.clientY - fireStartPos.current.y;
           const dist = Math.hypot(totalDx, totalDy);
           const maxDist = 32;
           const angle = Math.atan2(totalDy, totalDx);
           const clamped = Math.min(dist, maxDist);
-          setFireStickOffset({
-            x: Math.cos(angle) * clamped,
-            y: Math.sin(angle) * clamped,
-          });
+          const offX = Math.cos(angle) * clamped;
+          const offY = Math.sin(angle) * clamped;
+          fireKnobRef.current.style.transform = `translate3d(${offX}px, ${offY}px, 0)`;
         }
         break;
       }
@@ -191,7 +209,9 @@ export function MobileControls({ engine, active }: Props) {
         fireLastPos.current = null;
         fireStartPos.current = null;
         setFiring(false);
-        setFireStickOffset({ x: 0, y: 0 });
+        if (fireKnobRef.current) {
+          fireKnobRef.current.style.transform = "translate3d(0, 0, 0)";
+        }
         engine.setMobileFire(false);
         break;
       }
@@ -233,23 +253,15 @@ export function MobileControls({ engine, active }: Props) {
       >
         {joystickActive && (
           <div
-            className="absolute rounded-full border-2 border-neutral-700/60 bg-black/10 backdrop-blur-xs flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            style={{
-              left: joystickPos.startX,
-              top: joystickPos.startY,
-              width: 110,
-              height: 110,
-            }}
+            ref={joystickBaseRef}
+            className="absolute rounded-full border-2 border-neutral-700/60 bg-black/10 backdrop-blur-xs flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[110px] h-[110px]"
           >
             <div
-              className="absolute rounded-full border border-black bg-neutral-900/80 shadow-md -translate-x-1/2 -translate-y-1/2"
-              style={{
-                left: joystickPos.currX - joystickPos.startX + 55,
-                top: joystickPos.currY - joystickPos.startY + 55,
-                width: 48,
-                height: 48,
-              }}
-            />
+              ref={joystickKnobRef}
+              className="w-12 h-12 rounded-full border border-black bg-neutral-900/80 shadow-md flex items-center justify-center pointer-events-none"
+            >
+              <div className="w-4 h-4 rounded-full bg-neutral-500/50" />
+            </div>
           </div>
         )}
       </div>
@@ -328,16 +340,14 @@ export function MobileControls({ engine, active }: Props) {
             <div className="absolute left-1 h-2 w-0.5 bg-red-400/70 pointer-events-none" />
             <div className="absolute right-1 h-2 w-0.5 bg-red-400/70 pointer-events-none" />
 
-            {/* Dynamic Analogue Thumb Knob / Reticle */}
+            {/* Dynamic Analogue Thumb Knob / Reticle (Hardware accelerated transform) */}
             <div
-              className={`rounded-full flex flex-col items-center justify-center transition-transform duration-75 pointer-events-none shadow-lg ${
+              ref={fireKnobRef}
+              className={`rounded-full flex flex-col items-center justify-center pointer-events-none shadow-lg ${
                 firing
                   ? "w-14 h-14 bg-red-600 border-2 border-white text-white font-black"
                   : "w-12 h-12 bg-neutral-800/90 border border-neutral-400 text-neutral-200 font-bold"
               }`}
-              style={{
-                transform: `translate(${fireStickOffset.x}px, ${fireStickOffset.y}px)`,
-              }}
             >
               <span className="text-[11px] tracking-wider leading-none">
                 {firing ? "AIM" : "FIRE"}

@@ -23,6 +23,7 @@ export type EnemyHit = {
   distance: number;
   point: Vec3;
   normal: Vec3;
+  pos: Vec3;
 };
 
 export type EnemyManagerEvents = {
@@ -185,6 +186,7 @@ export class EnemyManager {
             distance: hit.t,
             point: hit.point,
             normal: hit.normal,
+            pos: [...entry.state.pos],
           };
         }
       }
