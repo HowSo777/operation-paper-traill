@@ -2,10 +2,10 @@
 import { createServer, type Server as HttpServer } from "node:http";
 import { Server as IoServer } from "socket.io";
 import { PLAYER_SPAWN, TEAM_CAPACITY, TEAM_RESPAWN_SECONDS, WORLD, getShotBlockers, isSafeZone } from "@/game/mapData";
-import { ARENA, getArenaBlockers } from "@/game/arena";
+import { ARENA, getArenaBlockers, getArenaSolids } from "@/game/arena";
 import { WEAPONS } from "@/game/armament";
 import { spawnFor, chooseTeam, freshScore, winningTeam, type TeamScore } from "@/game/teams";
-import { actorBox, hasLineOfSight, rayAabb, raycastBoxes } from "@/game/collision";
+import { actorBox, hasLineOfSight, moveAndCollide, rayAabb, raycastBoxes } from "@/game/collision";
 import { serverDb } from "@/db/storage";
 import {
   ROOM_RESCUE, ROOM_DEATHMATCH,
@@ -19,6 +19,7 @@ type ServerPlayer = PlayerSnapshot & {
   targetWaypoint?: Vec3;
   nextShot?: number;
   strafeDir?: number;
+  crouching?: boolean;
 };
 
 const BOT_NAMES = ["BOT Viper", "BOT Ghost", "BOT Razor", "BOT Apex", "BOT Titan", "BOT Shadow", "BOT Cobra", "BOT Phantom"];
@@ -51,6 +52,7 @@ const snapshot = (p: ServerPlayer): PlayerSnapshot => ({
   id: p.id, name: p.name, pos: [...p.pos], yaw: p.yaw, pitch: p.pitch, hp: p.hp, alive: p.alive,
   moving: p.moving, kills: p.kills, deaths: p.deaths, team: p.team, mode: p.mode,
   riding: p.riding, weapon: p.weapon, protected: p.protected,
+  crouching: p.crouching,
 });
 
 export type GameServerHandle = { http: HttpServer; io: IoServer<ClientToServerEvents, ServerToClientEvents>; port: number; close: () => void };
@@ -104,6 +106,19 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
     }
     balanceBots();
     broadcastMatch();
+  };
+
+  let roundResetTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleReset = () => {
+    if (roundResetTimer) {
+      clearTimeout(roundResetTimer);
+      timers.delete(roundResetTimer);
+    }
+    roundResetTimer = setTimeout(() => {
+      roundResetTimer = null;
+      resetRound();
+    }, 15000);
+    timers.add(roundResetTimer);
   };
 
   let botSeq = 0;
@@ -180,101 +195,131 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
     }
   };
 
-  const updateBots = () => {
+  const updateBots = (dt = 0.05) => {
     const bots = inMode("deathmatch").filter(p => p.isBot && p.alive);
     if (bots.length === 0) return;
     const now = Date.now();
     const blockers = getArenaBlockers();
+    const solids = getArenaSolids();
 
     for (const bot of bots) {
       if (bot.protected && now > bot.graceUntil) {
         bot.protected = false;
       }
 
-      // Check opposing enemies
+      // 1. Search for closest enemy with direct line-of-sight
       const enemies = inMode("deathmatch").filter(p => p.team !== bot.team && p.team !== "spectator" && p.alive && !p.protected);
-      let closestEnemy: ServerPlayer | null = null;
-      let closestDist = Infinity;
-      const botEye: Vec3 = [bot.pos[0], bot.pos[1] + 1.5, bot.pos[2]];
+      let targetEnemy: ServerPlayer | null = null;
+      let targetDist = Infinity;
+      let targetAimPoint: Vec3 | null = null;
+      let botEye: Vec3 = [bot.pos[0], bot.pos[1] + 1.5, bot.pos[2]];
 
       for (const enemy of enemies) {
         const d = Math.hypot(enemy.pos[0] - bot.pos[0], enemy.pos[2] - bot.pos[2]);
-        if (d < closestDist && d < 42) {
-          const enemyEye: Vec3 = [enemy.pos[0], enemy.pos[1] + 1.4, enemy.pos[2]];
-          if (hasLineOfSight(botEye, enemyEye, blockers)) {
-            closestDist = d;
-            closestEnemy = enemy;
+        if (d < 45) {
+          const eyeY = enemy.crouching ? 1.05 : 1.45;
+          const chestY = enemy.crouching ? 0.75 : 1.15;
+          const enemyEye: Vec3 = [enemy.pos[0], enemy.pos[1] + eyeY, enemy.pos[2]];
+          const enemyChest: Vec3 = [enemy.pos[0], enemy.pos[1] + chestY, enemy.pos[2]];
+
+          // Test line-of-sight to chest first (center of mass), fallback to head peeking
+          const canSeeChest = hasLineOfSight(botEye, enemyChest, blockers);
+          const canSeeEye = canSeeChest || hasLineOfSight(botEye, enemyEye, blockers);
+
+          if (canSeeEye && d < targetDist) {
+            targetDist = d;
+            targetEnemy = enemy;
+            targetAimPoint = canSeeChest ? enemyChest : enemyEye;
           }
         }
       }
 
-      if (closestEnemy) {
-        const dx = closestEnemy.pos[0] - bot.pos[0];
-        const dz = closestEnemy.pos[2] - bot.pos[2];
+      if (targetEnemy && targetAimPoint) {
+        const dx = targetEnemy.pos[0] - bot.pos[0];
+        const dz = targetEnemy.pos[2] - bot.pos[2];
         const targetYaw = Math.atan2(-dx, -dz);
         bot.yaw = targetYaw;
-        const dy = (closestEnemy.pos[1] + 1.2) - botEye[1];
-        bot.pitch = Math.atan2(dy, closestDist);
+        const dy = targetAimPoint[1] - (bot.pos[1] + 1.5);
+        bot.pitch = Math.atan2(dy, targetDist);
 
-        // Combat strafing
+        // Combat strafing with physical collision against solids
         bot.moving = true;
-        bot.pos[0] += Math.cos(targetYaw) * 0.08 * (bot.strafeDir ?? 1);
-        bot.pos[2] += Math.sin(targetYaw) * 0.08 * (bot.strafeDir ?? 1);
+        const strafeSpeed = 2.4;
+        const vel: Vec3 = [
+          Math.cos(targetYaw) * strafeSpeed * (bot.strafeDir ?? 1),
+          -0.5,
+          Math.sin(targetYaw) * strafeSpeed * (bot.strafeDir ?? 1),
+        ];
+        const col = moveAndCollide(bot.pos, [0.42, 0, 0.42], 1.85, vel, dt, solids);
+        if (col.hitWall || Math.random() < 0.04) {
+          bot.strafeDir = (bot.strafeDir ?? 1) * -1;
+        }
 
-        if (Math.random() < 0.04) bot.strafeDir = (bot.strafeDir ?? 1) * -1;
+        bot.pos[0] = Math.max(-48, Math.min(48, bot.pos[0]));
+        bot.pos[2] = Math.max(-40, Math.min(40, bot.pos[2]));
+        botEye = [bot.pos[0], bot.pos[1] + 1.5, bot.pos[2]];
 
-        if (now >= (bot.nextShot ?? 0)) {
+        if (now >= (bot.nextShot ?? 0) && !score.ended) {
           const spec = WEAPONS[bot.weapon ?? "rifle"];
           bot.nextShot = now + Math.max(300, spec.interval * 1000 * (1.1 + Math.random() * 0.6));
-          const spread = 0.045;
+          const spread = 0.038;
+          const aimDx = targetAimPoint[0] - botEye[0];
+          const aimDy = targetAimPoint[1] - botEye[1];
+          const aimDz = targetAimPoint[2] - botEye[2];
+          const aimDist = Math.hypot(aimDx, aimDy, aimDz) || 1;
           const shotDir: Vec3 = [
-            (dx / closestDist) + (Math.random() - 0.5) * spread,
-            (dy / closestDist) + (Math.random() - 0.5) * spread,
-            (dz / closestDist) + (Math.random() - 0.5) * spread,
+            (aimDx / aimDist) + (Math.random() - 0.5) * spread,
+            (aimDy / aimDist) + (Math.random() - 0.5) * spread,
+            (aimDz / aimDist) + (Math.random() - 0.5) * spread,
           ];
-          const dirLen = Math.hypot(...shotDir);
+          const dirLen = Math.hypot(...shotDir) || 1;
           const normDir: Vec3 = [shotDir[0] / dirLen, shotDir[1] / dirLen, shotDir[2] / dirLen];
 
           io.to(ROOM_DEATHMATCH).emit("playerShot", { id: bot.id, origin: botEye, dir: normDir });
 
-          const hit = rayAabb(botEye, normDir, actorBox(closestEnemy.pos, [.5, 0, .5], 1.85), 180);
-          if (hit && !raycastBoxes(botEye, normDir, blockers, Math.max(0, hit.t - 0.1))) {
-            const relY = hit.point[1] - closestEnemy.pos[1];
+          const enemyHeight = targetEnemy.crouching ? 1.25 : 1.85;
+          const hit = rayAabb(botEye, normDir, actorBox(targetEnemy.pos, [.5, 0, .5], enemyHeight), 180);
+          const wallHit = raycastBoxes(botEye, normDir, blockers, 180);
+
+          // Strictly reject hits through walls!
+          if (hit && (!wallHit || hit.t < wallHit.t - 0.05)) {
+            const relY = hit.point[1] - targetEnemy.pos[1];
             let damage = spec.damage * (spec.pellets > 1 ? 5 : 1);
             if (bot.weapon === "awp") {
-              if (relY < 0.72) damage = 85;
-              else if (relY >= 1.45) damage = 220;
+              if (relY < (targetEnemy.crouching ? 0.45 : 0.72)) damage = 85;
+              else if (relY >= (targetEnemy.crouching ? 0.95 : 1.45)) damage = 220;
               else damage = 115;
             } else {
-              if (relY >= 1.45) damage = Math.round(damage * 2.2);
-              else if (relY < 0.72) damage = Math.round(damage * 0.75);
+              if (relY >= (targetEnemy.crouching ? 0.95 : 1.45)) damage = Math.round(damage * 2.2);
+              else if (relY < (targetEnemy.crouching ? 0.45 : 0.72)) damage = Math.round(damage * 0.75);
             }
 
-            closestEnemy.hp = Math.max(0, closestEnemy.hp - damage);
-            io.to(ROOM_DEATHMATCH).emit("playerHurt", { id: closestEnemy.id, hp: closestEnemy.hp, byId: bot.id, damage });
+            targetEnemy.hp = Math.max(0, targetEnemy.hp - damage);
+            io.to(ROOM_DEATHMATCH).emit("playerHurt", { id: targetEnemy.id, hp: targetEnemy.hp, byId: bot.id, damage });
 
-            if (closestEnemy.hp === 0) {
-              closestEnemy.alive = false;
-              closestEnemy.deaths += 1;
+            if (targetEnemy.hp === 0) {
+              targetEnemy.alive = false;
+              targetEnemy.deaths += 1;
               bot.kills += 1;
               const winnerTeam = bot.team as TeamId;
               score[winnerTeam] += 1;
               const winner = winningTeam(score);
               if (winner) score.ended = true;
               io.to(ROOM_DEATHMATCH).emit("playerDied", {
-                victimId: closestEnemy.id, killerId: bot.id, killerName: bot.name, victimName: closestEnemy.name, team: closestEnemy.team, score: { ...score },
+                victimId: targetEnemy.id, killerId: bot.id, killerName: bot.name, victimName: targetEnemy.name, team: targetEnemy.team, score: { ...score },
               });
               broadcastMatch();
               if (winner) {
                 io.to(ROOM_DEATHMATCH).emit("roundEnded", { winner, score: { ...score } });
-                later(resetRound, 4500);
+                scheduleReset();
               } else {
-                later(() => respawn(closestEnemy!), TEAM_RESPAWN_SECONDS * 1000);
+                later(() => respawn(targetEnemy!), TEAM_RESPAWN_SECONDS * 1000);
               }
             }
           }
         }
       } else {
+        // Waypoint patrol with physical collision against arena solids
         if (!bot.targetWaypoint) {
           bot.targetWaypoint = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
         }
@@ -286,9 +331,19 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
         } else {
           bot.yaw = Math.atan2(-toX, -toZ);
           bot.pitch = 0;
-          bot.pos[0] += (-Math.sin(bot.yaw)) * 0.16;
-          bot.pos[2] += (-Math.cos(bot.yaw)) * 0.16;
           bot.moving = true;
+          const speed = 3.2;
+          const vel: Vec3 = [
+            (-Math.sin(bot.yaw)) * speed,
+            -0.5,
+            (-Math.cos(bot.yaw)) * speed,
+          ];
+          const col = moveAndCollide(bot.pos, [0.42, 0, 0.42], 1.85, vel, dt, solids);
+          if (col.hitWall) {
+            bot.targetWaypoint = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
+          }
+          bot.pos[0] = Math.max(-48, Math.min(48, bot.pos[0]));
+          bot.pos[2] = Math.max(-40, Math.min(40, bot.pos[2]));
         }
       }
     }
@@ -352,6 +407,7 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       }
       // In deathmatch only the server deals damage and schedules respawns.
       p.moving = payload.moving === true;
+      p.crouching = payload.crouching === true;
       p.riding = mode === "rescue" && payload.riding === true;
       if (typeof payload.weapon === "string" && payload.weapon in WEAPONS) p.weapon = payload.weapon;
       p.protected = (mode === "rescue" && isSafeZone(p.pos)) || Date.now() < p.graceUntil || !p.alive;
@@ -369,19 +425,21 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       if (mode !== "deathmatch") return; // Rescue is cooperative, not PvP.
       const target = players.get(payload?.targetId);
       if (!target || target.mode !== "deathmatch" || target.id === p.id || !target.alive || !p.alive || p.team === "spectator" || target.team === "spectator" || target.team === p.team || score.ended || p.hitUsed || Date.now() - p.lastShot > 500 || target.protected || p.protected) return;
-      const hit = rayAabb(p.shotOrigin, p.shotDir, actorBox(target.pos, [.5, 0, .5], 1.85), 220);
-      if (!hit || raycastBoxes(p.shotOrigin, p.shotDir, getArenaBlockers(), Math.max(0, hit.t - .1))) return;
+      const targetHeight = target.crouching ? 1.25 : 1.85;
+      const hit = rayAabb(p.shotOrigin, p.shotDir, actorBox(target.pos, [.5, 0, .5], targetHeight), 220);
+      const wallHit = raycastBoxes(p.shotOrigin, p.shotDir, getArenaBlockers(), 220);
+      if (!hit || (wallHit && wallHit.t < hit.t - 0.05)) return;
       p.hitUsed = true;
       const weapon = WEAPONS[p.weapon ?? "rifle"];
       const relY = hit.point[1] - target.pos[1];
       let damage = weapon.damage * (weapon.pellets > 1 ? 5 : 1);
       if (p.weapon === "awp") {
-        if (relY < 0.72) damage = 85; // Leg shot: 85 dmg (target survives 100 HP)
-        else if (relY >= 1.45) damage = 220; // Headshot
+        if (relY < (target.crouching ? 0.45 : 0.72)) damage = 85; // Leg shot: 85 dmg (target survives 100 HP)
+        else if (relY >= (target.crouching ? 0.95 : 1.45)) damage = 220; // Headshot
         else damage = 115; // Torso 1-shot kill
       } else {
-        if (relY >= 1.45) damage = Math.round(damage * 2.2); // Headshot multiplier
-        else if (relY < 0.72) damage = Math.round(damage * 0.75); // Leg shot penalty
+        if (relY >= (target.crouching ? 0.95 : 1.45)) damage = Math.round(damage * 2.2); // Headshot multiplier
+        else if (relY < (target.crouching ? 0.45 : 0.72)) damage = Math.round(damage * 0.75); // Leg shot penalty
       }
       target.hp = Math.max(0, target.hp - damage);
       io.to(ROOM_DEATHMATCH).emit("playerHurt", { id: target.id, hp: target.hp, byId: p.id, damage });
@@ -416,8 +474,18 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
           timestamp: new Date().toISOString(),
         });
         io.to(ROOM_DEATHMATCH).emit("roundEnded", { winner, score: { ...score } });
-        later(resetRound, 4500);
+        scheduleReset();
       } else later(() => respawn(target), TEAM_RESPAWN_SECONDS * 1000);
+    });
+    socket.on("rematch", () => {
+      if (mode === "deathmatch" && score.ended) {
+        if (roundResetTimer) {
+          clearTimeout(roundResetTimer);
+          timers.delete(roundResetTimer);
+          roundResetTimer = null;
+        }
+        resetRound();
+      }
     });
     socket.on("missionComplete", payload => {
       if (mode !== "rescue") return; // Deathmatch has no hostage/extraction.
@@ -437,7 +505,7 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
   });
 
   const timer = setInterval(() => {
-    updateBots();
+    updateBots(0.05);
     if (inMode("rescue").length) io.to(ROOM_RESCUE).emit("snapshot", { players: inMode("rescue").map(snapshot), tick: Date.now(), match: match("rescue") });
     if (inMode("deathmatch").length) io.to(ROOM_DEATHMATCH).emit("snapshot", { players: inMode("deathmatch").map(snapshot), tick: Date.now(), match: match("deathmatch") });
   }, 50);

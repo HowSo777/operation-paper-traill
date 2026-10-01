@@ -252,7 +252,7 @@ export default function GameShell() {
         </div>
       )}
 
-      {ready && (state.status === "dead" || state.status === "complete") && run && (
+      {ready && (state.status === "dead" || state.status === "complete") && state.mode === "rescue" && run && (
         <div className="menu-overlay dim">
           <div className="debrief-panel">
             <p className="menu-eyebrow">{state.status === "complete" ? "EXTRACTION COMPLETE" : "MISSION FAILED"}</p>
@@ -284,6 +284,99 @@ export default function GameShell() {
                 {state.status === "complete" ? "Play again" : "Respawn"}
               </button>
               <button type="button" onClick={toMenu}>Change loadout</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ready && state.status === "complete" && state.mode === "deathmatch" && state.matchResult && (
+        <div className="menu-overlay dim">
+          <div className={`match-debrief-panel ${state.matchResult.won ? "victory" : "defeat"}`}>
+            <p className="menu-eyebrow">
+              {state.matchResult.won ? "ROUND VICTORY" : "ROUND DEFEAT"} · 5V5 DEATHMATCH
+            </p>
+            <div className="match-title-row">
+              <h1 className={state.matchResult.won ? "win" : "loss"}>
+                {state.matchResult.won ? "VICTORY" : "DEFEAT"}
+              </h1>
+              <span className="match-rank-badge">
+                {state.matchResult.rankName}
+              </span>
+            </div>
+
+            <div className="match-scores-banner">
+              <div className="match-team-box blue">
+                <b>{state.matchResult.blueScore}</b>
+                <div>
+                  <span>BLUE SQUAD</span>
+                  {state.team === "blue" && <small className="block text-[9px] font-bold text-[#1971c2]">YOUR TEAM</small>}
+                </div>
+              </div>
+              <div className="match-vs">VS</div>
+              <div className="match-team-box red">
+                <b>{state.matchResult.redScore}</b>
+                <div>
+                  <span>RED SQUAD</span>
+                  {state.team === "red" && <small className="block text-[9px] font-bold text-[#c1121f]">YOUR TEAM</small>}
+                </div>
+              </div>
+            </div>
+
+            <div className="debrief-grid">
+              <div><span>KILLS</span><b>{state.matchResult.kills}</b></div>
+              <div><span>DEATHS</span><b>{state.matchResult.deaths}</b></div>
+              <div><span>K / D RATIO</span><b>{state.matchResult.kd}</b></div>
+              <div><span>MATCH XP</span><b>+{state.matchResult.xpGained}</b></div>
+              <div><span>TOTAL XP</span><b>{state.matchResult.totalXp}</b></div>
+              <div><span>MVP</span><b className="truncate text-sm">{state.matchResult.mvpName}</b><em>{state.matchResult.mvpKills} KILLS</em></div>
+            </div>
+
+            {/* Squad Rosters */}
+            <div className="match-roster-split">
+              <div className="match-roster-column blue-col">
+                <div className="match-roster-header text-[#1971c2]">
+                  <span>BLUE SQUAD</span>
+                  <span>K / D</span>
+                </div>
+                <ul className="match-roster-list">
+                  {state.roster.filter(p => p.team === "blue").map(p => (
+                    <li key={p.id} className={p.name === state.playerName ? "highlight-self" : ""}>
+                      <span className="truncate max-w-[120px]">{p.name} {p.name === state.playerName ? "(YOU)" : ""}</span>
+                      <b>{p.kills} / {p.deaths}</b>
+                    </li>
+                  ))}
+                  {state.roster.filter(p => p.team === "blue").length === 0 && (
+                    <li className="text-gray-400"><span>No operatives</span><span>-</span></li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="match-roster-column red-col">
+                <div className="match-roster-header text-[#c1121f]">
+                  <span>RED SQUAD</span>
+                  <span>K / D</span>
+                </div>
+                <ul className="match-roster-list">
+                  {state.roster.filter(p => p.team === "red").map(p => (
+                    <li key={p.id} className={p.name === state.playerName ? "highlight-self" : ""}>
+                      <span className="truncate max-w-[120px]">{p.name} {p.name === state.playerName ? "(YOU)" : ""}</span>
+                      <b>{p.kills} / {p.deaths}</b>
+                    </li>
+                  ))}
+                  {state.roster.filter(p => p.team === "red").length === 0 && (
+                    <li className="text-gray-400"><span>No operatives</span><span>-</span></li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            <div className="pause-buttons">
+              <button type="button" className="deploy-btn" onClick={replay}>
+                PLAY AGAIN / NEXT ROUND
+              </button>
+              <button type="button" onClick={toMenu}>
+                RETURN TO LOADOUT
+              </button>
             </div>
           </div>
         </div>

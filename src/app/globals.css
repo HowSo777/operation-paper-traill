@@ -205,4 +205,29 @@ kbd{display:inline-grid;place-items:center;min-width:23px;height:24px;border:1px
 .grade-B{background:#fff;color:#111}
 .grade-C{background:#eee;color:#777;border-color:#999}
 .debrief-xp{font:12px ui-monospace,monospace;color:#8a6d00}
+/* ---------- Deathmatch Win / Defeat Screen ---------- */
+.match-debrief-panel{width:min(640px,95vw);background:#fff;border:3px solid #111;box-shadow:10px 10px 0 #111;padding:24px 28px;height:fit-content;margin:auto;font-family:Arial,Helvetica,sans-serif;animation:banner-pop .22s ease-out}
+.match-debrief-panel.victory{border-top:6px solid #2a9d48}
+.match-debrief-panel.defeat{border-top:6px solid #c1121f}
+.match-title-row{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #eee;padding-bottom:10px}
+.match-title-row h1{margin:0;font-size:36px;letter-spacing:.08em;font-weight:900;text-transform:uppercase}
+.match-title-row h1.win{color:#1f8a3d}
+.match-title-row h1.loss{color:#c1121f}
+.match-rank-badge{background:#111;color:#fff;font:700 11px ui-monospace,monospace;padding:6px 10px;letter-spacing:.12em}
+.match-scores-banner{display:flex;justify-content:space-between;align-items:center;background:#f8f6f0;border:2px solid #111;padding:12px 24px;margin:14px 0}
+.match-team-box{display:flex;align-items:center;gap:12px}
+.match-team-box.blue{color:#1971c2}
+.match-team-box.red{color:#c1121f;flex-direction:row-reverse;text-align:right}
+.match-team-box b{font-size:34px;font-family:ui-monospace,monospace;line-height:1}
+.match-team-box span{font:700 12px ui-monospace,monospace;letter-spacing:.12em}
+.match-vs{font:italic 18px Georgia,serif;color:#888}
+.match-roster-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;font:10px ui-monospace,monospace}
+.match-roster-column{border:1px solid #e0dbcd;background:#faf8f5;padding:8px}
+.match-roster-column.blue-col{border-top:3px solid #1971c2}
+.match-roster-column.red-col{border-top:3px solid #c1121f}
+.match-roster-header{font-weight:700;padding-bottom:4px;margin-bottom:6px;border-bottom:1px dashed #ccc;display:flex;justify-content:space-between}
+.match-roster-list{list-style:none;padding:0;margin:0}
+.match-roster-list li{display:flex;justify-content:space-between;padding:3px 0}
+.match-roster-list li.highlight-self{font-weight:700;background:#fff;padding:3px 4px;border:1px solid #ccc}
 @media(max-width:900px){.menu-grid{grid-template-columns:1fr}.mode-tabs{grid-template-columns:1fr}.mode-card{padding:9px 11px}.card-row{grid-template-columns:repeat(2,1fr)}.menu-bests{display:none}.xp-wrap{top:50px;bottom:auto;transform:translateX(-50%) scale(0.85);z-index:5}.team-scoreboard{top:10px;grid-template-columns:82px 120px 82px}.contracts{display:none}.killfeed{display:none}.minimap-wrap{transform:scale(.72);transform-origin:top right}.weapon-slots{left:90px;bottom:14px;transform:none}}
+

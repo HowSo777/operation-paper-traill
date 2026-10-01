@@ -1,5 +1,39 @@
 {
   "runs": [],
-  "profiles": {},
+  "profiles": {
+    "AGENT-475": {
+      "callsign": "AGENT-475",
+      "totalXp": 800,
+      "rankTier": 1,
+      "rankName": "Silver I",
+      "kills": 8,
+      "deaths": 0,
+      "matchesWon": 0,
+      "crates": 1,
+      "keys": 1,
+      "unlockedSkins": [
+        "rifle_default",
+        "awp_default",
+        "deagle_default",
+        "smg_default",
+        "p90_default",
+        "shotgun_default",
+        "sniper_default",
+        "pistol_default"
+      ],
+      "equippedSkins": {
+        "rifle": "rifle_default",
+        "awp": "awp_default",
+        "deagle": "deagle_default",
+        "smg": "smg_default",
+        "p90": "p90_default",
+        "shotgun": "shotgun_default",
+        "sniper": "sniper_default",
+        "pistol": "pistol_default"
+      },
+      "lastClaimedRankTier": 1,
+      "updatedAt": "2026-09-30T16:21:02.608Z"
+    }
+  },
   "matches": []
 }

@@ -98,6 +98,10 @@ export class Net {
     this.socket?.emit("missionComplete", payload);
   }
 
+  sendRematch(): void {
+    this.socket?.emit("rematch");
+  }
+
   get connected(): boolean {
     return this.socket?.connected ?? false;
   }

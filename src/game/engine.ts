@@ -256,8 +256,94 @@ export class Engine {
       onRoundEnded: payload => {
         if (this.mode !== "deathmatch") return;
         this.applyMatch({ mode: "deathmatch", ...payload.score, bluePlayers: this.match.bluePlayers, redPlayers: this.match.redPlayers, capacity: this.match.capacity });
-        hudStore.banner(`${payload.winner === "blue" ? "BLUE" : "RED"} TEAM WINS`, "next round deploying");
-        if (this.team !== "spectator") this.queueTeamRespawn(4.5);
+
+        // 1. Release pointer lock & stop inputs
+        if (document.pointerLockElement === this.options.canvas) {
+          document.exitPointerLock();
+        }
+        this.player.setEnabled(false);
+        this.mouseDown = false;
+        this.mousePressed = false;
+        this.rightDown = false;
+        this.respawnAt = 0;
+
+        // 2. Compute victory / defeat & performance stats
+        const won = this.team === payload.winner;
+        const myKills = this.stats.kills;
+        const roster = hudStore.getSnapshot().roster;
+        const myDeaths = Math.max(0, roster.find(p => p.id === this.net.selfId)?.deaths ?? 0);
+        const kd = (myKills / Math.max(1, myDeaths)).toFixed(2);
+
+        // 3. Award XP & check rank progression
+        const baseMatchXp = won ? 500 : 250;
+        const killXp = myKills * 50;
+        const matchXpGained = baseMatchXp + killXp;
+
+        const beforeRank = getRankForXp(this.totalXp).rank;
+        this.totalXp += matchXpGained;
+        saveTotalXp(this.totalXp);
+        const afterRank = getRankForXp(this.totalXp).rank;
+        if (afterRank.tier > beforeRank.tier) {
+          const inv = loadInventory();
+          inv.crates += 1;
+          inv.keys += 1;
+          saveInventory(inv);
+          sfx.achievement();
+          hudStore.achievement(`PROMOTED: ${afterRank.name}`, "+1 Weapon Case & +1 Key unlocked!");
+          hudStore.banner(`RANK UP: ${afterRank.name}`, "+1 CASE & +1 KEY!");
+        }
+
+        // 4. Find MVP across both squads
+        const allRoster = [...roster];
+        if (!allRoster.some(p => p.id === this.net.selfId)) {
+          allRoster.push({
+            id: this.net.selfId ?? "player",
+            name: this.options.playerName,
+            kills: myKills,
+            deaths: myDeaths,
+            team: this.team,
+            mode: "deathmatch",
+            hp: this.player.health,
+            alive: this.player.alive,
+            moving: false,
+            pos: this.player.pos,
+            yaw: this.player.yaw,
+            pitch: this.player.pitch,
+          });
+        }
+        let mvpName = this.options.playerName;
+        let mvpKills = myKills;
+        for (const p of allRoster) {
+          if (p.kills > mvpKills) {
+            mvpName = p.name;
+            mvpKills = p.kills;
+          }
+        }
+
+        if (won) sfx.mission();
+        else sfx.death();
+
+        hudStore.set({
+          status: "complete",
+          mission: "complete",
+          pointerLocked: false,
+          respawnSeconds: 0,
+          matchResult: {
+            won,
+            winner: payload.winner,
+            playerTeam: this.team,
+            blueScore: payload.score.blue,
+            redScore: payload.score.red,
+            kills: myKills,
+            deaths: myDeaths,
+            kd,
+            xpGained: matchXpGained,
+            totalXp: this.totalXp,
+            rankName: afterRank.name,
+            mvpName,
+            mvpKills,
+          },
+        });
       },
       onConnect: () => hudStore.set({ connected: true }), onDisconnect: () => { hudStore.set({ connected: false }); this.applyRemotes([]); },
     }, this.mode);
@@ -427,7 +513,7 @@ export class Engine {
     this.team = "blue";
     this.match = { mode: this.mode, blue: 0, red: 0, limit: 30, round: 1, ended: false, bluePlayers: 0, redPlayers: 0, capacity: this.mode === "deathmatch" ? 5 : 0 };
     this.fullReset();
-    hudStore.set({ status: "menu", mission: "briefing", prompt: null, connected: false, team: "blue", match: this.match, scoreboardOpen: false });
+    hudStore.set({ status: "menu", mission: "briefing", prompt: null, connected: false, team: "blue", match: this.match, scoreboardOpen: false, matchResult: null, lastRun: null });
     if (document.pointerLockElement === this.options.canvas) document.exitPointerLock();
     this.updateHud();
     this.updateCamera(0);
@@ -802,8 +888,11 @@ export class Engine {
   }
 
   respawn(): void {
+    if (this.mode === "deathmatch") {
+      this.net.sendRematch();
+    }
     this.fullReset();
-    hudStore.set({ status: "paused", mission: this.mode === "rescue" ? "find_hostage" : "briefing", lastRun: null, hostageSecured: false, hitMarker: 0, streak: null, banner: null, killFeed: [], contracts: this.mode === "rescue" ? this.contractHud() : [], scoreboardOpen: false });
+    hudStore.set({ status: "paused", mission: this.mode === "rescue" ? "find_hostage" : "briefing", lastRun: null, matchResult: null, hostageSecured: false, hitMarker: 0, streak: null, banner: null, killFeed: [], contracts: this.mode === "rescue" ? this.contractHud() : [], scoreboardOpen: false });
     this.updateHud(); this.updateCamera(0); this.lock();
   }
   restart(): void { this.respawn(); }
@@ -825,6 +914,7 @@ export class Engine {
           pos: this.player.pos, yaw: this.bike.riding ? this.bike.yaw : this.player.yaw, pitch: this.player.pitch, hp: Math.round(this.player.health),
           alive: this.player.alive, moving: this.bike.riding ? Math.abs(this.bike.speed) > .5 : Math.hypot(this.player.vel[0], this.player.vel[2]) > .4,
           riding: this.bike.riding, weapon: this.weapon.kind, protected: this.protected,
+          crouching: this.player.crouching,
         });
       }
       this.renderer.clear(); this.renderer.render(this.scene, this.camera);

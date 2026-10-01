@@ -4,6 +4,7 @@ export type TeamScorePayload = { blue: number; red: number; limit: number; round
 export type MovePayload = {
   pos: Vec3; yaw: number; pitch: number; hp: number; alive: boolean;
   moving: boolean; riding?: boolean; weapon?: WeaponKind; protected?: boolean;
+  crouching?: boolean;
 };
 export type PlayerSnapshot = MovePayload & {
   id: string; name: string; kills: number; deaths: number; team: TeamOrSpectator; mode: GameMode;
@@ -32,6 +33,7 @@ export type ClientToServerEvents = {
   shot: (payload: { origin: Vec3; dir: Vec3 }) => void;
   hit: (payload: { targetId: string; damage: number }) => void;
   missionComplete: (payload: { name: string; timeMs: number; kills: number; accuracy: number; score?: number }) => void;
+  rematch: () => void;
 };
 
 export const ROOM_RESCUE = "rescue";

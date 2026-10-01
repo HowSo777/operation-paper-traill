@@ -1,6 +1,6 @@
 import type { Bests } from "./progression";
 import type { MatchPayload, PlayerSnapshot } from "./protocol";
-import type { DifficultyId, GameMode, Loadout, TeamOrSpectator, Vec3, WeaponKind } from "./types";
+import type { DifficultyId, GameMode, Loadout, TeamId, TeamOrSpectator, Vec3, WeaponKind } from "./types";
 
 export type KillFeedEntry = { id: number; text: string; kind: "enemy" | "player" | "info" };
 export type MissionState = "briefing" | "find_hostage" | "exfil" | "ride" | "complete" | "dead";
@@ -20,6 +20,21 @@ export type MinimapState = {
   friendlies: { x: number; z: number }[];
   checkIndex: number;
 };
+export type MatchResult = {
+  won: boolean;
+  winner: TeamId;
+  playerTeam: TeamOrSpectator;
+  blueScore: number;
+  redScore: number;
+  kills: number;
+  deaths: number;
+  kd: string;
+  xpGained: number;
+  totalXp: number;
+  rankName: string;
+  mvpName: string;
+  mvpKills: number;
+};
 export type HudSettings = { sensitivity: number; volume: number; muted: boolean; invertY: boolean; quality: "high" | "low" };
 export type HudState = {
   mode: GameMode;
@@ -29,7 +44,7 @@ export type HudState = {
   prompt: string | null; hitMarker: number; killFeed: KillFeedEntry[]; missionTimeMs: number;
   kills: number; shots: number; hits: number; playersOnline: number; connected: boolean; playerName: string;
   message: string | null; messageAt: number; damageFlash: number; damageBearing: number; sniperAim: number | null;
-  lastRun: RunResult | null; leaderboard: LeaderboardEntry[]; fps: number; pointerLocked: boolean;
+  lastRun: RunResult | null; matchResult: MatchResult | null; leaderboard: LeaderboardEntry[]; fps: number; pointerLocked: boolean;
   crosshair: number; hostageSecured: boolean; safeZone: boolean; spawnProtection: number;
   riding: boolean; speed: number; checkpoint: number; totalCheckpoints: number; aiming: boolean; pursuers: number;
   score: number; level: number; xpProgress: number;
@@ -48,7 +63,7 @@ const initial: HudState = {
   weaponName: "AK-47", weaponKind: "rifle", magazineSize: 30, inventory: ["rifle"], objective: "Rescue the hostage",
   objectiveDistance: 93, objectiveBearing: 0, prompt: null, hitMarker: 0, killFeed: [], missionTimeMs: 0,
   kills: 0, shots: 0, hits: 0, playersOnline: 1, connected: false, playerName: "OPERATIVE", message: null, messageAt: 0,
-  damageFlash: 0, damageBearing: 0, sniperAim: null, lastRun: null, leaderboard: [], fps: 0, pointerLocked: false,
+  damageFlash: 0, damageBearing: 0, sniperAim: null, lastRun: null, matchResult: null, leaderboard: [], fps: 0, pointerLocked: false,
   crosshair: 0, hostageSecured: false, safeZone: true, spawnProtection: 8, riding: false, speed: 0,
   checkpoint: 0, totalCheckpoints: 8, aiming: false, pursuers: 0,
   score: 0, level: 1, xpProgress: 0, streak: null, banner: null, contracts: [],
