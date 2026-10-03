@@ -28,6 +28,7 @@ export type NetHandlers = {
     victimName: string;
     team: import("./types").TeamOrSpectator;
     score: TeamScorePayload;
+    headshot?: boolean;
   }) => void;
   onMatchUpdate?: (match: MatchPayload) => void;
   onRoundEnded?: (payload: { winner: import("./types").TeamId; score: TeamScorePayload }) => void;

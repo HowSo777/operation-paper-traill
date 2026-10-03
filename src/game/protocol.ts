@@ -21,7 +21,7 @@ export type ServerToClientEvents = {
   playerHurt: (payload: { id: string; hp: number; byId: string; damage: number }) => void;
   playerDied: (payload: {
     victimId: string; killerId: string; killerName: string; victimName: string;
-    team: TeamOrSpectator; score: TeamScorePayload;
+    team: TeamOrSpectator; score: TeamScorePayload; headshot?: boolean;
   }) => void;
   matchUpdate: (payload: MatchPayload) => void;
   roundEnded: (payload: { winner: TeamId; score: TeamScorePayload }) => void;

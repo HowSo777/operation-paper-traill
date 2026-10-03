@@ -433,12 +433,13 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       const weapon = WEAPONS[p.weapon ?? "rifle"];
       const relY = hit.point[1] - target.pos[1];
       let damage = weapon.damage * (weapon.pellets > 1 ? 5 : 1);
+      const isHeadshot = relY >= (target.crouching ? 0.95 : 1.45);
       if (p.weapon === "awp") {
         if (relY < (target.crouching ? 0.45 : 0.72)) damage = 85; // Leg shot: 85 dmg (target survives 100 HP)
-        else if (relY >= (target.crouching ? 0.95 : 1.45)) damage = 220; // Headshot
+        else if (isHeadshot) damage = 220; // Headshot
         else damage = 115; // Torso 1-shot kill
       } else {
-        if (relY >= (target.crouching ? 0.95 : 1.45)) damage = Math.round(damage * 2.2); // Headshot multiplier
+        if (isHeadshot) damage = Math.round(damage * 2.2); // Headshot multiplier
         else if (relY < (target.crouching ? 0.45 : 0.72)) damage = Math.round(damage * 0.75); // Leg shot penalty
       }
       target.hp = Math.max(0, target.hp - damage);
@@ -452,7 +453,7 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
         serverDb.saveProfile({
           callsign: p.name,
           kills: (prof?.kills ?? 0) + 1,
-          totalXp: (prof?.totalXp ?? 0) + 100,
+          totalXp: (prof?.totalXp ?? 0) + (isHeadshot ? 150 : 100),
         });
       }
       const winnerTeam = p.team as TeamId;
@@ -460,7 +461,7 @@ export function startGameServer(portOrServer: number | HttpServer = Number(proce
       const winner = winningTeam(score);
       if (winner) score.ended = true;
       io.to(ROOM_DEATHMATCH).emit("playerDied", {
-        victimId: target.id, killerId: p.id, killerName: p.name, victimName: target.name, team: target.team, score: { ...score },
+        victimId: target.id, killerId: p.id, killerName: p.name, victimName: target.name, team: target.team, score: { ...score }, headshot: isHeadshot,
       });
       broadcastMatch();
       if (winner) {

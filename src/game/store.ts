@@ -35,6 +35,15 @@ export type MatchResult = {
   mvpName: string;
   mvpKills: number;
 };
+export type KillEmblem = {
+  id: number;
+  title: string;
+  victim: string;
+  headshot: boolean;
+  xp: number;
+  streak: number;
+  at: number;
+};
 export type HudSettings = { sensitivity: number; volume: number; muted: boolean; invertY: boolean; quality: "high" | "low" };
 export type HudState = {
   mode: GameMode;
@@ -50,6 +59,7 @@ export type HudState = {
   score: number; level: number; xpProgress: number;
   streak: { text: string; at: number } | null;
   banner: { title: string; sub: string; id: number } | null;
+  killEmblem: KillEmblem | null;
   contracts: ContractHud[];
   achievement: { title: string; desc: string; id: number } | null;
   minimap: MinimapState | null;
@@ -66,7 +76,7 @@ const initial: HudState = {
   damageFlash: 0, damageBearing: 0, sniperAim: null, lastRun: null, matchResult: null, leaderboard: [], fps: 0, pointerLocked: false,
   crosshair: 0, hostageSecured: false, safeZone: true, spawnProtection: 8, riding: false, speed: 0,
   checkpoint: 0, totalCheckpoints: 8, aiming: false, pursuers: 0,
-  score: 0, level: 1, xpProgress: 0, streak: null, banner: null, contracts: [],
+  score: 0, level: 1, xpProgress: 0, streak: null, banner: null, killEmblem: null, contracts: [],
   achievement: null, minimap: null,
   loadout: { primary: "rifle", perk: "scout" }, difficulty: "regular",
   settings: { sensitivity: 0.002, volume: 70, muted: false, invertY: false, quality: "high" },
@@ -95,6 +105,19 @@ class HudStore {
   }
   streak(text: string): void {
     this.set({ streak: { text, at: performance.now() } });
+  }
+  triggerKillEmblem(data: { victim: string; headshot?: boolean; streak?: number; xp?: number; title?: string }): void {
+    this.set({
+      killEmblem: {
+        id: this.feedId++,
+        title: data.headshot ? "HEADSHOT" : (data.title ?? "ELIMINATED"),
+        victim: data.victim,
+        headshot: !!data.headshot,
+        xp: data.xp ?? (data.headshot ? 150 : 100),
+        streak: data.streak ?? 0,
+        at: performance.now(),
+      },
+    });
   }
   achievement(title: string, desc: string): void {
     this.set({ achievement: { title, desc, id: this.feedId++ } });

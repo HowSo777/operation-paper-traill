@@ -245,9 +245,16 @@ export class Engine {
         if (remote) this.deathMarks.spawn(payload.victimId, remote.pos);
         if (payload.killerId === this.net.selfId && payload.victimId !== this.net.selfId) {
           this.stats.kills++;
-          this.addScore(XP.kill, "OPERATIVE DOWN");
+          this.addScore(payload.headshot ? (XP.kill + XP.headshotBonus) : XP.kill, payload.headshot ? "HEADSHOT" : "OPERATIVE DOWN");
           this.registerKillStreak();
+          if (payload.headshot) sfx.headshot(); else sfx.kill();
           hudStore.pushFeed(`You eliminated ${payload.victimName}`, "player");
+          hudStore.triggerKillEmblem({
+            victim: payload.victimName,
+            headshot: !!payload.headshot,
+            streak: this.run.streakCount,
+            xp: payload.headshot ? 150 : 100,
+          });
         }
         this.applyMatch({ mode: "deathmatch", ...payload.score, bluePlayers: this.match.bluePlayers, redPlayers: this.match.redPlayers, capacity: this.match.capacity });
         if (payload.victimId === this.net.selfId) this.queueTeamRespawn();
@@ -1190,6 +1197,12 @@ export class Engine {
             this.registerKillStreak();
             this.unlock("firstBlood");
             hudStore.pushFeed(`${headshot ? "Headshot" : "Eliminated"} · ${result.enemy.kind === "sniper" ? "sniper" : "guard"}`, "enemy");
+            hudStore.triggerKillEmblem({
+              victim: result.enemy.kind === "sniper" ? "TOWER SNIPER" : "SECTOR GUARD",
+              headshot,
+              streak: this.run.streakCount,
+              xp: headshot ? (XP.kill + XP.headshotBonus) : XP.kill,
+            });
           }
         }
       } else if (wall) {
@@ -1249,6 +1262,13 @@ export class Engine {
         this.unlock("firstBlood");
         sfx.kill();
         hudStore.pushFeed("Barrel blast · guard down", "enemy");
+        hudStore.triggerKillEmblem({
+          victim: enemy.kind === "sniper" ? "TOWER SNIPER" : "SECTOR GUARD",
+          headshot: false,
+          streak: this.run.streakCount,
+          xp: XP.kill,
+          title: "BLOWN AWAY",
+        });
       } else sfx.hit();
     }
     const playerDistance = Math.hypot(this.player.pos[0] - centre[0], this.player.pos[1] - centre[1], this.player.pos[2] - centre[2]);
@@ -1280,6 +1300,13 @@ export class Engine {
       this.progressContract("roadwarrior");
       this.unlock("firstBlood");
       if (result.pursuer.ace) this.unlock("aceSlayer");
+      hudStore.triggerKillEmblem({
+        victim: result.pursuer.ace ? "ACE HOSTILE RIDER" : "HOSTILE RIDER",
+        headshot: false,
+        streak: this.run.streakCount,
+        xp: bonus,
+        title: result.pursuer.ace ? "ACE DOWN" : "NEUTRALIZED",
+      });
     }
     else sfx.hit();
   }

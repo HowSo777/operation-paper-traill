@@ -28,6 +28,7 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
   const [unboxedSkin, setUnboxedSkin] = useState<WeaponSkin | null>(null);
   const [rouletteItems, setRouletteItems] = useState<WeaponSkin[]>([]);
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponKind>("rifle");
+  const [equipToast, setEquipToast] = useState<string | null>(null);
 
   const reelRef = useRef<HTMLDivElement>(null);
   const tickAudioRef = useRef<number | null>(null);
@@ -37,6 +38,7 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
       setInv(loadInventory());
       setUnboxedSkin(null);
       setSpinning(false);
+      setEquipToast(null);
     }
   }, [open]);
 
@@ -135,6 +137,8 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
     const updated = loadInventory();
     setInv(updated);
     sfx.uiClick();
+    setEquipToast(`EQUIPPED: ${skin.name}`);
+    window.setTimeout(() => setEquipToast(null), 2400);
     onSkinEquipped?.();
   };
 
@@ -143,6 +147,11 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 select-none">
       <div className="relative w-full max-w-4xl bg-neutral-900 border-2 border-neutral-700 rounded-xl shadow-2xl overflow-hidden flex flex-col text-neutral-100 max-h-[92vh]">
+        {equipToast && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-green-500 border-2 border-white text-black font-mono font-black text-xs rounded-xl shadow-2xl animate-bounce flex items-center gap-2 tracking-wider">
+            <span>✓</span> {equipToast}
+          </div>
+        )}
         {/* Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-neutral-950">
           <div className="flex items-center gap-4">
@@ -407,8 +416,8 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                           {rarity.label}
                         </span>
                         {isEquipped ? (
-                          <span className="px-2 py-0.5 rounded bg-amber-400 text-black text-[10px] font-black font-mono">
-                            EQUIPPED
+                          <span className="px-2.5 py-1 rounded bg-green-500 text-black text-[10px] font-black font-mono shadow-md flex items-center gap-1">
+                            ✓ EQUIPPED
                           </span>
                         ) : owned ? (
                           <span className="text-green-400 text-[10px] font-mono font-bold">
@@ -453,13 +462,13 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                           type="button"
                           disabled={isEquipped}
                           onClick={() => handleEquip(skin)}
-                          className={`w-full py-2 rounded font-mono text-xs font-bold transition-all ${
+                          className={`w-full py-2.5 rounded font-mono text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
                             isEquipped
-                              ? "bg-neutral-800 text-neutral-500 cursor-default"
-                              : "bg-amber-500 hover:bg-amber-400 text-black font-black"
+                              ? "bg-green-950/80 border border-green-500/60 text-green-400 cursor-default shadow-md"
+                              : "bg-amber-500 hover:bg-amber-400 text-black shadow-lg hover:scale-[1.01] active:scale-95 cursor-pointer"
                           }`}
                         >
-                          {isEquipped ? "CURRENTLY EQUIPPED" : "EQUIP TO LOADOUT"}
+                          {isEquipped ? "✓ CURRENTLY EQUIPPED" : "EQUIP TO LOADOUT"}
                         </button>
                       ) : (
                         <button

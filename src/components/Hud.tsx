@@ -29,11 +29,80 @@ function ScopeOverlay({ kind }: { kind?: string }) {
   </div>;
 }
 
+function KillEmblemBadge({ emblem }: { emblem: NonNullable<HudState["killEmblem"]> }) {
+  return (
+    <div className={`kill-emblem-container${emblem.headshot ? " headshot" : ""}`} key={emblem.id}>
+      <div className="kill-emblem-crest">
+        <svg viewBox="0 0 120 120" className="kill-emblem-svg" aria-hidden="true">
+          <polygon
+            points="60,6 114,60 60,114 6,60"
+            fill="none"
+            stroke={emblem.headshot ? "#ff1744" : "#e8a020"}
+            strokeWidth="2.5"
+            strokeDasharray="4 2"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r="38"
+            fill={emblem.headshot ? "rgba(193, 18, 31, 0.22)" : "rgba(232, 160, 32, 0.18)"}
+            stroke={emblem.headshot ? "#ff1744" : "#e8a020"}
+            strokeWidth="1.8"
+          />
+          <line x1="60" y1="12" x2="60" y2="28" stroke="#ffffff" strokeWidth="2" />
+          <line x1="60" y1="92" x2="60" y2="108" stroke="#ffffff" strokeWidth="2" />
+          <line x1="12" y1="60" x2="28" y2="60" stroke="#ffffff" strokeWidth="2" />
+          <line x1="92" y1="60" x2="108" y2="60" stroke="#ffffff" strokeWidth="2" />
+
+          {/* Wireframe Skull */}
+          <path
+            d="M44 48 C44 34 76 34 76 48 C76 56 72 62 68 64 L68 70 L52 70 L52 64 C48 62 44 56 44 48 Z"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="2.2"
+            strokeLinejoin="round"
+          />
+          <circle cx="53" cy="50" r="3.5" fill={emblem.headshot ? "#ff1744" : "#e8a020"} />
+          <circle cx="67" cy="50" r="3.5" fill={emblem.headshot ? "#ff1744" : "#e8a020"} />
+          <polygon points="60,56 58,61 62,61" fill="#ffffff" />
+          <line x1="56" y1="66" x2="56" y2="70" stroke="#ffffff" strokeWidth="1.5" />
+          <line x1="60" y1="66" x2="60" y2="70" stroke="#ffffff" strokeWidth="1.5" />
+          <line x1="64" y1="66" x2="64" y2="70" stroke="#ffffff" strokeWidth="1.5" />
+
+          {/* Tactical wings */}
+          <line x1="32" y1="34" x2="42" y2="44" stroke="#ffffff" strokeWidth="2" />
+          <line x1="88" y1="34" x2="78" y2="44" stroke="#ffffff" strokeWidth="2" />
+          <line x1="32" y1="86" x2="44" y2="74" stroke="#ffffff" strokeWidth="2" />
+          <line x1="88" y1="86" x2="76" y2="74" stroke="#ffffff" strokeWidth="2" />
+        </svg>
+      </div>
+
+      <div className="kill-emblem-text">
+        <div className="kill-emblem-title">
+          {emblem.headshot ? (
+            <span className="badge-headshot">💥 HEADSHOT</span>
+          ) : (
+            <span className="badge-kill">☠ ELIMINATED</span>
+          )}
+          <span className="kill-emblem-xp">+{emblem.xp} XP</span>
+        </div>
+        <div className="kill-emblem-victim">{emblem.victim}</div>
+        {emblem.streak > 1 && (
+          <div className="kill-emblem-streak">
+            {emblem.streak === 2 ? "DOUBLE KILL" : emblem.streak === 3 ? "TRIPLE KILL" : `STREAK ×${emblem.streak}`}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Hud({ state }: { state: HudState }) {
   const [messageVisible, setMessageVisible] = useState(false);
   const [streakVisible, setStreakVisible] = useState(false);
   const [bannerVisible, setBannerVisible] = useState(false);
   const [achievementVisible, setAchievementVisible] = useState(false);
+  const [emblemVisible, setEmblemVisible] = useState(false);
   useEffect(() => {
     if (!state.message) return;
     const start = window.setTimeout(() => setMessageVisible(true), 0);
@@ -58,6 +127,12 @@ export function Hud({ state }: { state: HudState }) {
     const end = window.setTimeout(() => setAchievementVisible(false), 3600);
     return () => { window.clearTimeout(start); window.clearTimeout(end); };
   }, [state.achievement]);
+  useEffect(() => {
+    if (!state.killEmblem) return;
+    const start = window.setTimeout(() => setEmblemVisible(true), 0);
+    const end = window.setTimeout(() => setEmblemVisible(false), 1900);
+    return () => { window.clearTimeout(start); window.clearTimeout(end); };
+  }, [state.killEmblem]);
 
   if (state.status === "menu") return <div className="game-hud menu-idle" />;
 
@@ -138,6 +213,7 @@ export function Hud({ state }: { state: HudState }) {
       {state.hitMarker > 0 && <span key={state.hitMarker} className="hit-marker" aria-hidden="true" />}
       {bannerVisible && state.banner && <div key={state.banner.id} className="kill-banner"><b>{state.banner.title}</b>{state.banner.sub && <span>{state.banner.sub}</span>}</div>}
       {streakVisible && state.streak && <div className="streak-banner">{state.streak.text}</div>}
+      {emblemVisible && state.killEmblem && <KillEmblemBadge emblem={state.killEmblem} />}
       {state.sniperAim !== null && state.sniperAim > .25 && <div className="sniper-warning">Sniper sighted — find cover <span style={{ width: `${state.sniperAim * 100}%` }} /></div>}
       {state.status === "paused" ? <div className="play-hint"><span className="play-triangle" />Paused<span className="play-controls">Click resume or press Esc in the pause menu</span></div> : state.prompt && <div className="interaction-prompt"><kbd>{state.prompt.startsWith("E ·") ? "E" : "↑ ↓"}</kbd><span>{state.prompt.replace(/^E · /, "")}</span></div>}
       {state.riding && <div className="riding-controls"><kbd>W</kbd> accelerate <kbd>A</kbd><kbd>D</kbd> steer <kbd>Space</kbd> brake <kbd>LMB</kbd> fire <kbd>E</kbd> dismount <kbd>R</kbd> reset ride</div>}
