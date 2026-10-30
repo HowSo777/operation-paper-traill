@@ -23,7 +23,7 @@ export const RARITY_CONFIG: Record<SkinRarity, { label: string; color: string; h
   milspec: { label: "Mil-Spec", color: "#4b69ff", hex: 0x4b69ff, border: "border-blue-500", bg: "bg-blue-950/80" },
   restricted: { label: "Restricted", color: "#8847ff", hex: 0x8847ff, border: "border-purple-500", bg: "bg-purple-950/80" },
   covert: { label: "Covert", color: "#eb4b4b", hex: 0xeb4b4b, border: "border-red-500", bg: "bg-red-950/80" },
-  special: { label: "★ Special Rare", color: "#ffd700", hex: 0xffd700, border: "border-amber-400", bg: "bg-amber-950/80" },
+  special: { label: "Special Rare", color: "#ffd700", hex: 0xffd700, border: "border-amber-400", bg: "bg-amber-950/80" },
 };
 
 export const SKINS: Record<string, WeaponSkin> = {

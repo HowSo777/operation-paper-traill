@@ -80,16 +80,16 @@ function KillEmblemBadge({ emblem }: { emblem: NonNullable<HudState["killEmblem"
       <div className="kill-emblem-text">
         <div className="kill-emblem-title">
           {emblem.headshot ? (
-            <span className="badge-headshot">💥 HEADSHOT</span>
+            <span className="badge-headshot">HEADSHOT</span>
           ) : (
-            <span className="badge-kill">☠ ELIMINATED</span>
+            <span className="badge-kill">ELIMINATED</span>
           )}
           <span className="kill-emblem-xp">+{emblem.xp} XP</span>
         </div>
         <div className="kill-emblem-victim">{emblem.victim}</div>
         {emblem.streak > 1 && (
           <div className="kill-emblem-streak">
-            {emblem.streak === 2 ? "DOUBLE KILL" : emblem.streak === 3 ? "TRIPLE KILL" : `STREAK ×${emblem.streak}`}
+            {emblem.streak === 2 ? "DOUBLE KILL" : emblem.streak === 3 ? "TRIPLE KILL" : `STREAK x${emblem.streak}`}
           </div>
         )}
       </div>
@@ -176,12 +176,12 @@ export function Hud({ state }: { state: HudState }) {
                 <div className="team-roster roster-blue" aria-label="Blue team roster">
                   <header><b>BLUE SQUAD</b><span>{state.match.blue}/{state.match.limit}</span></header>
                   {state.roster.filter(p => p.team === "blue").sort((a,b) => b.kills-a.kills).map(p => <div key={p.id} className={`${p.name === state.playerName ? "self" : ""}${p.alive ? "" : " down"}`}><i/><span>{p.name}</span><em>{p.hp > 0 && p.alive ? `${p.hp}` : "OUT"}</em><b>{p.kills}</b></div>)}
-                  {Array.from({length:Math.max(0,5-state.roster.filter(p=>p.team==="blue").length)},(_,i)=><div key={`blue-open-${i}`} className="empty-slot"><i/><span>OPEN SLOT</span><em>—</em><b>0</b></div>)}
+                  {Array.from({length:Math.max(0,5-state.roster.filter(p=>p.team==="blue").length)},(_,i)=><div key={`blue-open-${i}`} className="empty-slot"><i/><span>OPEN SLOT</span><em>-</em><b>0</b></div>)}
                 </div>
                 <div className="team-roster roster-red" aria-label="Red team roster">
                   <header><b>RED SQUAD</b><span>{state.match.red}/{state.match.limit}</span></header>
                   {state.roster.filter(p => p.team === "red").sort((a,b) => b.kills-a.kills).map(p => <div key={p.id} className={`${p.name === state.playerName ? "self" : ""}${p.alive ? "" : " down"}`}><i/><span>{p.name}</span><em>{p.hp > 0 && p.alive ? `${p.hp}` : "OUT"}</em><b>{p.kills}</b></div>)}
-                  {Array.from({length:Math.max(0,5-state.roster.filter(p=>p.team==="red").length)},(_,i)=><div key={`red-open-${i}`} className="empty-slot"><i/><span>OPEN SLOT</span><em>—</em><b>0</b></div>)}
+                  {Array.from({length:Math.max(0,5-state.roster.filter(p=>p.team==="red").length)},(_,i)=><div key={`red-open-${i}`} className="empty-slot"><i/><span>OPEN SLOT</span><em>-</em><b>0</b></div>)}
                 </div>
               </div>
             </div>
@@ -193,7 +193,7 @@ export function Hud({ state }: { state: HudState }) {
           <div className="scoreboard-panel">
             <div className="team-roster rescue-roster" aria-label="Operatives online">
               <header><b>OPERATIVES</b><span>{state.playersOnline} ONLINE</span></header>
-              {state.roster.length === 0 && <div className="empty-slot"><i/><span>SOLO OPERATION</span><em>—</em><b>{state.kills}</b></div>}
+              {state.roster.length === 0 && <div className="empty-slot"><i/><span>SOLO OPERATION</span><em>-</em><b>{state.kills}</b></div>}
               {[...state.roster].sort((a,b) => b.kills-a.kills).map(p => <div key={p.id} className={`${p.name === state.playerName ? "self" : ""}${p.alive ? "" : " down"}`}><i/><span>{p.name}</span><em>{p.alive ? `${p.hp} HP` : "OUT"}</em><b>{p.kills}</b></div>)}
             </div>
           </div>
@@ -214,7 +214,7 @@ export function Hud({ state }: { state: HudState }) {
       {bannerVisible && state.banner && <div key={state.banner.id} className="kill-banner"><b>{state.banner.title}</b>{state.banner.sub && <span>{state.banner.sub}</span>}</div>}
       {streakVisible && state.streak && <div className="streak-banner">{state.streak.text}</div>}
       {emblemVisible && state.killEmblem && <KillEmblemBadge emblem={state.killEmblem} />}
-      {state.sniperAim !== null && state.sniperAim > .25 && <div className="sniper-warning">Sniper sighted — find cover <span style={{ width: `${state.sniperAim * 100}%` }} /></div>}
+      {state.sniperAim !== null && state.sniperAim > .25 && <div className="sniper-warning">Sniper sighted: find cover <span style={{ width: `${state.sniperAim * 100}%` }} /></div>}
       {state.status === "paused" ? <div className="play-hint"><span className="play-triangle" />Paused<span className="play-controls">Click resume or press Esc in the pause menu</span></div> : state.prompt && <div className="interaction-prompt"><kbd>{state.prompt.startsWith("E ·") ? "E" : "↑ ↓"}</kbd><span>{state.prompt.replace(/^E · /, "")}</span></div>}
       {state.riding && <div className="riding-controls"><kbd>W</kbd> accelerate <kbd>A</kbd><kbd>D</kbd> steer <kbd>Space</kbd> brake <kbd>LMB</kbd> fire <kbd>E</kbd> dismount <kbd>R</kbd> reset ride</div>}
       {state.riding && state.pursuers > 0 && <div className="pursuit-status"><span>{state.pursuers}</span><div>RIDER HOSTILES<em>shoot them off the road</em></div></div>}
@@ -223,7 +223,7 @@ export function Hud({ state }: { state: HudState }) {
       {state.mode === "rescue" && state.contracts.length > 0 && !state.riding && <div className="contracts">
         {state.contracts.map(c => (
           <div key={c.id} className={c.done ? "done" : ""}>
-            <b>{c.done ? "✓" : `${c.progress}/${c.target}`}</b>
+            <b>{c.done ? "DONE" : `${c.progress}/${c.target}`}</b>
             <span>{c.title}<em>{c.desc}</em></span>
           </div>
         ))}

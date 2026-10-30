@@ -254,13 +254,13 @@ export function MobileControls({ engine, active }: Props) {
         {joystickActive && (
           <div
             ref={joystickBaseRef}
-            className="absolute rounded-full border-2 border-neutral-700/60 bg-black/10 backdrop-blur-xs flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[110px] h-[110px]"
+            className="absolute rounded-full border border-neutral-700 bg-neutral-950/80 flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[110px] h-[110px]"
           >
             <div
               ref={joystickKnobRef}
-              className="w-12 h-12 rounded-full border border-black bg-neutral-900/80 shadow-md flex items-center justify-center pointer-events-none"
+              className="w-12 h-12 rounded-full border border-neutral-600 bg-neutral-900 flex items-center justify-center pointer-events-none"
             >
-              <div className="w-4 h-4 rounded-full bg-neutral-500/50" />
+              <div className="w-4 h-4 rounded-full bg-neutral-400" />
             </div>
           </div>
         )}
@@ -278,21 +278,21 @@ export function MobileControls({ engine, active }: Props) {
         <div className="flex gap-2">
           <button
             type="button"
-            className="w-12 h-12 rounded-full border border-neutral-800/80 bg-neutral-900/80 text-white font-mono text-xs font-bold shadow-lg backdrop-blur-xs active:bg-neutral-700 flex items-center justify-center"
+            className="w-12 h-12 rounded-full border border-neutral-700 bg-neutral-900 text-white font-mono text-xs font-bold active:bg-neutral-800 flex items-center justify-center"
             onTouchStart={(e) => { e.stopPropagation(); engine?.cycleWeapon(); }}
           >
             SWAP
           </button>
           <button
             type="button"
-            className="w-12 h-12 rounded-full border border-neutral-800/80 bg-neutral-900/80 text-white font-mono text-xs font-bold shadow-lg backdrop-blur-xs active:bg-neutral-700 flex items-center justify-center"
+            className="w-12 h-12 rounded-full border border-neutral-700 bg-neutral-900 text-white font-mono text-xs font-bold active:bg-neutral-800 flex items-center justify-center"
             onTouchStart={(e) => { e.stopPropagation(); engine?.mobileReload(); }}
           >
             RELOAD
           </button>
           <button
             type="button"
-            className="w-12 h-12 rounded-full border border-neutral-800/80 bg-neutral-900/80 text-white font-mono text-xs font-bold shadow-lg backdrop-blur-xs active:bg-neutral-700 flex items-center justify-center"
+            className="w-12 h-12 rounded-full border border-neutral-700 bg-neutral-900 text-white font-mono text-xs font-bold active:bg-neutral-800 flex items-center justify-center"
             onTouchStart={(e) => { e.stopPropagation(); engine?.mobileInteract(); }}
           >
             USE
@@ -303,8 +303,8 @@ export function MobileControls({ engine, active }: Props) {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className={`w-14 h-14 rounded-full border-2 font-mono text-xs font-bold shadow-xl backdrop-blur-xs flex items-center justify-center transition-colors ${
-              aiming ? "border-amber-400 bg-amber-500 text-black font-black" : "border-neutral-700 bg-neutral-900/80 text-white active:bg-neutral-700"
+            className={`w-14 h-14 rounded-full border font-mono text-xs font-bold flex items-center justify-center transition-colors ${
+              aiming ? "border-amber-400 bg-amber-500 text-black font-black" : "border-neutral-700 bg-neutral-900 text-white active:bg-neutral-800"
             }`}
             onTouchStart={(e) => {
               e.stopPropagation();
@@ -318,7 +318,7 @@ export function MobileControls({ engine, active }: Props) {
 
           <button
             type="button"
-            className="w-14 h-14 rounded-full border-2 border-neutral-700 bg-neutral-900/80 text-white font-mono text-xs font-bold shadow-xl backdrop-blur-xs active:bg-neutral-700 flex items-center justify-center"
+            className="w-14 h-14 rounded-full border border-neutral-700 bg-neutral-900 text-white font-mono text-xs font-bold active:bg-neutral-800 flex items-center justify-center"
             onTouchStart={(e) => { e.stopPropagation(); engine?.mobileJump(); }}
           >
             JUMP
@@ -326,27 +326,27 @@ export function MobileControls({ engine, active }: Props) {
 
           {/* Precision Analogue AIM-TO-FIRE Stick */}
           <div
-            className={`relative w-24 h-24 rounded-full border-3 flex items-center justify-center cursor-pointer shadow-2xl transition-all ${
+            className={`relative w-24 h-24 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${
               firing
-                ? "border-red-500 bg-red-950/70 shadow-red-500/50 scale-105"
-                : "border-neutral-500/80 bg-neutral-950/80 shadow-black/80 hover:border-red-400"
+                ? "border-red-500 bg-red-950/80 scale-105"
+                : "border-neutral-600 bg-neutral-950 hover:border-red-400"
             }`}
             onTouchStart={handleFireStart}
           >
             {/* Outer wireframe crosshair marks */}
             <div className="absolute inset-0 rounded-full border border-dashed border-red-500/40 pointer-events-none" />
-            <div className="absolute top-1 w-2 h-0.5 bg-red-400/70 pointer-events-none" />
-            <div className="absolute bottom-1 w-2 h-0.5 bg-red-400/70 pointer-events-none" />
-            <div className="absolute left-1 h-2 w-0.5 bg-red-400/70 pointer-events-none" />
-            <div className="absolute right-1 h-2 w-0.5 bg-red-400/70 pointer-events-none" />
+            <div className="absolute top-1 w-2 h-0.5 bg-red-400 pointer-events-none" />
+            <div className="absolute bottom-1 w-2 h-0.5 bg-red-400 pointer-events-none" />
+            <div className="absolute left-1 h-2 w-0.5 bg-red-400 pointer-events-none" />
+            <div className="absolute right-1 h-2 w-0.5 bg-red-400 pointer-events-none" />
 
             {/* Dynamic Analogue Thumb Knob / Reticle (Hardware accelerated transform) */}
             <div
               ref={fireKnobRef}
-              className={`rounded-full flex flex-col items-center justify-center pointer-events-none shadow-lg ${
+              className={`rounded-full flex flex-col items-center justify-center pointer-events-none ${
                 firing
-                  ? "w-14 h-14 bg-red-600 border-2 border-white text-white font-black"
-                  : "w-12 h-12 bg-neutral-800/90 border border-neutral-400 text-neutral-200 font-bold"
+                  ? "w-14 h-14 bg-red-600 border border-white text-white font-black"
+                  : "w-12 h-12 bg-neutral-800 border border-neutral-600 text-neutral-200 font-bold"
               }`}
             >
               <span className="text-[11px] tracking-wider leading-none">

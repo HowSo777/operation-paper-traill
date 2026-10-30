@@ -229,7 +229,7 @@ export default function GameShell() {
               <ul className="pause-contracts">
                 {state.contracts.map(c => (
                   <li key={c.id} className={c.done ? "done" : ""}>
-                    {c.done ? "✓" : `${c.progress}/${c.target}`} · {c.title}
+                    {c.done ? "[DONE]" : `${c.progress}/${c.target}`} · {c.title}
                   </li>
                 ))}
               </ul>

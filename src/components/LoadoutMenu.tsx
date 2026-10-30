@@ -88,7 +88,7 @@ export function LoadoutMenu(props: Props) {
     const weaponSkins = Object.values(SKINS).filter((s) => s.weapon === weaponKind);
 
     return (
-      <div className="mt-3 p-3 bg-neutral-900 border border-neutral-800 rounded-xl shadow-inner">
+      <div className="mt-3 p-3 bg-neutral-900 border border-neutral-800 rounded-xl">
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-mono font-bold text-neutral-300">
@@ -103,7 +103,7 @@ export function LoadoutMenu(props: Props) {
             onClick={() => setShowCrates(true)}
             className="text-[10px] font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer font-bold"
           >
-            <span>📦 Cases & Keys ({inv.crates}C / {inv.keys}K)</span>
+            <span>CASES & KEYS ({inv.crates}C / {inv.keys}K)</span>
           </button>
         </div>
 
@@ -116,9 +116,9 @@ export function LoadoutMenu(props: Props) {
             return (
               <div
                 key={skin.id}
-                className={`min-w-[125px] max-w-[135px] p-2 rounded-lg border-2 flex flex-col justify-between gap-1.5 shrink-0 transition-all ${
+                className={`min-w-[125px] max-w-[135px] p-2 rounded-lg border flex flex-col justify-between gap-1.5 shrink-0 transition-all ${
                   isEquipped
-                    ? "border-green-400 bg-green-950/40 ring-1 ring-green-400/50"
+                    ? "border-green-400 bg-green-950/40"
                     : owned
                     ? "border-neutral-700 bg-neutral-950 hover:border-neutral-500"
                     : "border-neutral-800 bg-neutral-950/40 opacity-60"
@@ -132,8 +132,8 @@ export function LoadoutMenu(props: Props) {
                     {rarity.label.split(" ")[0]}
                   </span>
                   {isEquipped ? (
-                    <span className="px-1.5 py-0.5 rounded bg-green-500 text-black text-[9px] font-black font-mono shadow-xs">
-                      ✓ EQUIPPED
+                    <span className="px-1.5 py-0.5 rounded bg-green-500 text-black text-[9px] font-black font-mono">
+                      EQUIPPED
                     </span>
                   ) : owned ? (
                     <span className="text-green-400 text-[9px] font-mono font-bold">
@@ -147,7 +147,7 @@ export function LoadoutMenu(props: Props) {
                 </div>
 
                 <div
-                  className="w-full h-8 rounded flex items-center justify-center border shadow-xs"
+                  className="w-full h-8 rounded flex items-center justify-center border"
                   style={{
                     backgroundColor: `#${skin.bodyColor.toString(16).padStart(6, "0")}`,
                     borderColor: `#${skin.lineColor.toString(16).padStart(6, "0")}`,
@@ -173,10 +173,10 @@ export function LoadoutMenu(props: Props) {
                     className={`w-full py-1 rounded font-mono text-[10px] font-black transition-all ${
                       isEquipped
                         ? "bg-green-950/80 border border-green-500/60 text-green-400 cursor-default"
-                        : "bg-amber-500 hover:bg-amber-400 text-black cursor-pointer active:scale-95 shadow-sm"
+                        : "bg-amber-500 hover:bg-amber-400 text-black cursor-pointer active:scale-95"
                     }`}
                   >
-                    {isEquipped ? "✓ EQUIPPED" : "EQUIP"}
+                    {isEquipped ? "EQUIPPED" : "EQUIP"}
                   </button>
                 ) : (
                   <button
@@ -200,19 +200,19 @@ export function LoadoutMenu(props: Props) {
       <div className="menu-panel">
         <div className="menu-header">
           <div>
-            <p className="menu-eyebrow">OPERATION // PAPER TRAIL</p>
-            <h1>Choose your operation</h1>
-            <p className="menu-sub">Tactical multiplayer FPS. Pick your loadout and unbox skins before deploying.</p>
+            <p className="menu-eyebrow">PUBLIC MATCHMAKING // US-EAST · 64 TICK</p>
+            <h1>PAPER TRAIL // FPS</h1>
+            <p className="menu-sub">Competitive browser tactical shooter. Select your loadout and unbox skins.</p>
           </div>
 
           <div className="flex items-center gap-4 flex-wrap">
             {/* Competitive Rank Badge */}
             <div
-              className="flex items-center gap-3 bg-neutral-900 border px-3.5 py-2 rounded-xl shadow-lg"
+              className="flex items-center gap-3 bg-[#11141c] border px-3.5 py-2 rounded"
               style={{ borderColor: rankInfo.rank.badgeColor }}
             >
               <div
-                className="w-10 h-10 rounded-full border-2 flex items-center justify-center font-black font-mono text-xs shadow-md"
+                className="w-9 h-9 rounded border flex items-center justify-center font-black font-mono text-xs"
                 style={{
                   borderColor: rankInfo.rank.badgeColor,
                   color: rankInfo.rank.badgeColor,
@@ -226,8 +226,8 @@ export function LoadoutMenu(props: Props) {
                   <span className="font-mono text-xs font-black tracking-wider" style={{ color: rankInfo.rank.badgeColor }}>
                     {rankInfo.rank.name.toUpperCase()}
                   </span>
-                  <span className="text-[10px] text-amber-400">
-                    {"★".repeat(rankInfo.rank.stars)}
+                  <span className="text-[10px] text-amber-400 font-mono font-bold">
+                    [TIER {rankInfo.rank.tier}]
                   </span>
                 </div>
                 <div className="w-24 bg-neutral-800 h-1.5 rounded-full overflow-hidden mt-1">
@@ -245,18 +245,17 @@ export function LoadoutMenu(props: Props) {
               </div>
             </div>
 
-            {/* CS:GO Crates & Skins Button */}
+            {/* Crates & Skins Button */}
             <button
               type="button"
               onClick={() => setShowCrates(true)}
-              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black font-mono text-xs rounded-xl shadow-xl flex items-center gap-2 tracking-wider transition-transform active:scale-95 cursor-pointer"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black font-mono text-xs rounded flex items-center gap-2 tracking-wider transition-transform active:scale-95 cursor-pointer"
             >
-              <span className="text-base">📦</span>
-              <span>CRATES & SKINS</span>
+              <span>CRATES & ARSENAL</span>
             </button>
 
             <div className="menu-bests">
-              <div><span>BEST SCORE</span><b>{props.bests.bestScore || "—"}</b></div>
+              <div><span>BEST SCORE</span><b>{props.bests.bestScore || "0"}</b></div>
               <div><span>BEST TIME</span><b>{formatTime(props.bests.bestTimeMs)}</b></div>
               <div><span>RUNS</span><b>{props.bests.runs}</b></div>
             </div>
@@ -275,9 +274,9 @@ export function LoadoutMenu(props: Props) {
           {props.mode === "rescue" ? <><b>INFILTRATE · RESCUE · EXFIL</b><span>Fight AI guards and tower snipers, find the captive in the buried bunker, then survive the motorcycle pursuit.</span><i>NPC GUARDS · HIDDEN HOSTAGE · EXTRACTION RUN</i></> : <><b>5 BLUE VS 5 RED · FIRST TO 30</b><span>Real players only on Ironworks. Hold angles, use mirrored lanes and elevated decks, and redeploy straight back into the fight.</span><i>DEDICATED ROOM · FRIENDLY FIRE OFF · NO RESCUE OBJECTIVES</i></>}
         </div>
         <div className="mode-share-row">
-          <span>INVITE YOUR SQUAD</span>
-          <button type="button" onClick={() => void share("rescue")}>{copied === "rescue" ? "✓ Rescue link copied" : "Copy Rescue link"}</button>
-          <button type="button" onClick={() => void share("deathmatch")}>{copied === "deathmatch" ? "✓ 5v5 invite copied" : "Copy 5v5 invite"}</button>
+          <span>INVITE SQUAD</span>
+          <button type="button" onClick={() => void share("rescue")}>{copied === "rescue" ? "Rescue link copied" : "Copy Rescue link"}</button>
+          <button type="button" onClick={() => void share("deathmatch")}>{copied === "deathmatch" ? "5v5 invite copied" : "Copy 5v5 invite"}</button>
         </div>
 
         <div className="menu-grid">
@@ -392,7 +391,7 @@ export function LoadoutMenu(props: Props) {
             <button type="button" className="deploy-btn" onClick={props.onDeploy}>
               {props.mode === "deathmatch" ? "ENTER 5v5 ARENA →" : "DEPLOY FOR RESCUE →"}
             </button>
-            <p className="menu-muted">WASD move · Mouse look · LMB fire · RMB aim · E interact · R reload · 1–8 weapons · M mute</p>
+            <p className="menu-muted">WASD move · Mouse look · LMB fire · RMB aim · E interact · R reload · 1-8 weapons · M mute</p>
           </aside>
         </div>
       </div>

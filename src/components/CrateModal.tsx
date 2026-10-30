@@ -145,18 +145,18 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 select-none">
-      <div className="relative w-full max-w-4xl bg-neutral-900 border-2 border-neutral-700 rounded-xl shadow-2xl overflow-hidden flex flex-col text-neutral-100 max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 select-none">
+      <div className="relative w-full max-w-4xl bg-[#121620] border border-[#2a3140] rounded-lg overflow-hidden flex flex-col text-neutral-100 max-h-[92vh]">
         {equipToast && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-green-500 border-2 border-white text-black font-mono font-black text-xs rounded-xl shadow-2xl animate-bounce flex items-center gap-2 tracking-wider">
-            <span>✓</span> {equipToast}
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-green-500 border border-white text-black font-mono font-black text-xs rounded flex items-center gap-2 tracking-wider">
+            <span>[OK]</span> {equipToast}
           </div>
         )}
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-neutral-950">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#232938] bg-[#0e111a]">
           <div className="flex items-center gap-4">
-            <span className="text-xl font-black font-mono tracking-wider text-amber-400">
-              CHROMA OPERATIVE CASE
+            <span className="text-base font-black font-mono tracking-wider text-amber-400">
+              TACTICAL WEAPON ARSENAL
             </span>
             <div className="flex gap-2">
               <button
@@ -186,21 +186,21 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 text-xs font-mono">
-              <span className="px-2.5 py-1 rounded bg-neutral-800 border border-neutral-700">
-                📦 CRATES: <b className="text-amber-400">{inv.crates}</b>
+              <span className="px-2.5 py-1 rounded bg-[#181d28] border border-[#2a3140]">
+                CRATES: <b className="text-amber-400">{inv.crates}</b>
               </span>
-              <span className="px-2.5 py-1 rounded bg-neutral-800 border border-neutral-700">
-                🔑 KEYS: <b className="text-amber-400">{inv.keys}</b>
+              <span className="px-2.5 py-1 rounded bg-[#181d28] border border-[#2a3140]">
+                KEYS: <b className="text-amber-400">{inv.keys}</b>
               </span>
               <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-mono hidden sm:inline-block">
-                ★ EARN BY RANKING UP
+                RANK PROMOTION DROP
               </span>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="text-neutral-400 hover:text-white font-mono text-xl font-bold px-2"
+              className="text-neutral-400 hover:text-white font-mono text-xl font-bold px-2 cursor-pointer"
             >
               ✕
             </button>
@@ -211,9 +211,9 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
         {activeTab === "crate" ? (
           <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto">
             {/* CS:GO Roulette Reel Container */}
-            <div className="relative w-full overflow-hidden bg-neutral-950 border-2 border-neutral-700 rounded-lg p-2 shadow-inner">
+            <div className="relative w-full overflow-hidden bg-neutral-950 border-2 border-neutral-700 rounded-lg p-2">
               {/* Centre Selection Needle */}
-              <div className="absolute top-0 bottom-0 left-1/2 w-1 -translate-x-1/2 bg-amber-400 z-20 shadow-[0_0_12px_#f59e0b]">
+              <div className="absolute top-0 bottom-0 left-1/2 w-1 -translate-x-1/2 bg-amber-400 z-20">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-x-6 border-x-transparent border-t-8 border-t-amber-400" />
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 border-x-6 border-x-transparent border-b-8 border-b-amber-400" />
               </div>
@@ -229,7 +229,7 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                   return (
                     <div
                       key={`${item.id}-${idx}`}
-                      className={`flex-shrink-0 w-35 h-44 rounded-lg border-2 ${rarity.border} ${rarity.bg} p-2.5 flex flex-col justify-between items-center text-center shadow-lg relative overflow-hidden`}
+                      className={`flex-shrink-0 w-35 h-44 rounded-lg border-2 ${rarity.border} ${rarity.bg} p-2.5 flex flex-col justify-between items-center text-center relative overflow-hidden`}
                     >
                       <div className="text-[10px] uppercase font-mono tracking-wider font-bold text-neutral-400">
                         {item.weapon.toUpperCase()}
@@ -276,22 +276,22 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
 
             {/* Unboxed Winner Celebration Popup */}
             {unboxedSkin && (
-              <div className="w-full bg-neutral-950 border-2 border-amber-400 rounded-xl p-5 flex items-center justify-between shadow-2xl animate-in fade-in zoom-in-95">
+              <div className="w-full bg-neutral-950 border-2 border-amber-400 rounded-xl p-5 flex items-center justify-between animate-in fade-in zoom-in-95">
                 <div className="flex items-center gap-5">
                   <div
-                    className="w-24 h-20 rounded-lg flex items-center justify-center border-2 shadow-lg"
+                    className="w-24 h-20 rounded-lg flex items-center justify-center border-2"
                     style={{
                       borderColor: `#${unboxedSkin.lineColor.toString(16).padStart(6, "0")}`,
                       backgroundColor: `#${unboxedSkin.bodyColor.toString(16).padStart(6, "0")}`,
                     }}
                   >
-                    <span className="text-xs font-black font-mono tracking-widest text-white drop-shadow">
+                    <span className="text-xs font-black font-mono tracking-widest text-white">
                       {unboxedSkin.weapon.toUpperCase()}
                     </span>
                   </div>
                   <div>
                     <div className="text-xs font-mono uppercase tracking-wider text-amber-400">
-                      ★ NEW WEAPON SKIN UNBOXED!
+                      NEW WEAPON SKIN UNBOXED
                     </div>
                     <div className="text-xl font-black font-mono text-white">
                       {unboxedSkin.name}
@@ -311,7 +311,7 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                 <button
                   type="button"
                   onClick={() => handleEquip(unboxedSkin)}
-                  className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black font-mono text-sm rounded-lg shadow-lg tracking-wider transition-transform active:scale-95"
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black font-mono text-sm rounded tracking-wider transition-transform active:scale-95 cursor-pointer"
                 >
                   EQUIP SKIN
                 </button>
@@ -324,10 +324,10 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                 type="button"
                 disabled={spinning || inv.crates <= 0 || inv.keys <= 0}
                 onClick={handleOpenCase}
-                className={`px-10 py-4 rounded-xl font-black font-mono text-lg tracking-widest uppercase transition-all shadow-xl ${
+                className={`px-10 py-3.5 rounded font-black font-mono text-base tracking-widest uppercase transition-all ${
                   spinning || inv.crates <= 0 || inv.keys <= 0
                     ? "bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700"
-                    : "bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black shadow-amber-500/30 hover:scale-105 active:scale-95"
+                    : "bg-amber-500 hover:bg-amber-400 text-black cursor-pointer active:scale-95"
                 }`}
               >
                 {spinning ? "SPINNING CASE..." : "OPEN CASE (1 KEY)"}
@@ -406,7 +406,7 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                       key={skin.id}
                       className={`rounded-xl border-2 ${
                         isEquipped ? "border-amber-400 ring-2 ring-amber-400/40" : rarity.border
-                      } ${rarity.bg} p-4 flex flex-col justify-between gap-3 shadow-lg`}
+                      } ${rarity.bg} p-4 flex flex-col justify-between gap-3`}
                     >
                       <div className="flex items-center justify-between">
                         <span
@@ -416,8 +416,8 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                           {rarity.label}
                         </span>
                         {isEquipped ? (
-                          <span className="px-2.5 py-1 rounded bg-green-500 text-black text-[10px] font-black font-mono shadow-md flex items-center gap-1">
-                            ✓ EQUIPPED
+                          <span className="px-2 py-0.5 rounded bg-green-500 text-black text-[10px] font-black font-mono">
+                            EQUIPPED
                           </span>
                         ) : owned ? (
                           <span className="text-green-400 text-[10px] font-mono font-bold">
@@ -432,7 +432,7 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
 
                       {/* 3D Color Swatch Preview */}
                       <div
-                        className="w-full h-16 rounded-lg flex items-center justify-center border shadow-inner"
+                        className="w-full h-16 rounded-lg flex items-center justify-center border"
                         style={{
                           backgroundColor: `#${skin.bodyColor.toString(16).padStart(6, "0")}`,
                           borderColor: `#${skin.lineColor.toString(16).padStart(6, "0")}`,
@@ -462,13 +462,13 @@ export function CrateModal({ open, onClose, onSkinEquipped }: Props) {
                           type="button"
                           disabled={isEquipped}
                           onClick={() => handleEquip(skin)}
-                          className={`w-full py-2.5 rounded font-mono text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                          className={`w-full py-2 rounded font-mono text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
                             isEquipped
-                              ? "bg-green-950/80 border border-green-500/60 text-green-400 cursor-default shadow-md"
-                              : "bg-amber-500 hover:bg-amber-400 text-black shadow-lg hover:scale-[1.01] active:scale-95 cursor-pointer"
+                              ? "bg-green-950/80 border border-green-500/60 text-green-400 cursor-default"
+                              : "bg-amber-500 hover:bg-amber-400 text-black active:scale-95 cursor-pointer"
                           }`}
                         >
-                          {isEquipped ? "✓ CURRENTLY EQUIPPED" : "EQUIP TO LOADOUT"}
+                          {isEquipped ? "CURRENTLY EQUIPPED" : "EQUIP TO LOADOUT"}
                         </button>
                       ) : (
                         <button

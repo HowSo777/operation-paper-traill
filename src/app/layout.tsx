@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import "./polish.css";
 
 export const metadata: Metadata = {
-  title: "Operation: Paper Trail — wireframe tactical FPS",
+  title: "PAPER TRAIL // Multiplayer Tactical FPS",
   description:
-    "A minimalist wireframe first person shooter: rescue the hostage, reach the motorcycle, exfiltrate. Built with Three.js, Socket.io, Next.js and PostgreSQL.",
+    "Fast-paced browser tactical FPS. 5v5 team deathmatch and co-op hostage rescue. Built with Three.js, Socket.io, and Next.js.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-white text-[#0a0a0a] antialiased">{children}</body>
+      <body className="bg-[#0b0d12] text-[#edf1f7] antialiased select-none overflow-hidden">{children}</body>
     </html>
   );
 }
