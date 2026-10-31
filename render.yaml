@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: paper-trail-fps
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: UNIFIED_SERVER
+        value: "true"
