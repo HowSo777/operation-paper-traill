@@ -96,8 +96,15 @@ function towers(root: THREE.Object3D) {
       beam(root, [x - 2.3, y, z - 2.3], [x + 2.3, y, z - 2.3], .025);
     }
     const rungs: { pos: Vec3; size: Vec3 }[] = [];
-    for (const dx of [-.34, .34]) rungs.push({ pos: [x + dx, h / 2 + .3, z + 2.95], size: [.055, h + .6, .055] });
-    for (let y = .24; y <= h + .35; y += .35) rungs.push({ pos: [x, y, z + 2.95], size: [.7, .045, .045] });
+    const lz = z + 2.45;
+    for (const dx of [-.34, .34]) rungs.push({ pos: [x + dx, h / 2 + .3, lz], size: [.055, h + .6, .055] });
+    for (let y = .24; y <= h + .35; y += .35) rungs.push({ pos: [x, y, lz], size: [.7, .045, .045] });
+    // Steel brackets mounting the ladder solidly into the tower platform frame
+    for (let y = 1.2; y <= h; y += 2.0) {
+      for (const dx of [-.34, .34]) {
+        rungs.push({ pos: [x + dx, y, (lz + z + 2.3) / 2], size: [.045, .045, Math.abs(lz - (z + 2.3))] });
+      }
+    }
     root.add(inkify(mergeBoxes(rungs)));
     beam(root, [x, h + 2.8, z], [x, h + 5.7, z], .025);
     line(root, [[x - .85, h + 4.8, z], [x + .85, h + 4.8, z]]);
@@ -318,11 +325,23 @@ function bunker(root: THREE.Object3D): void {
   label(root, "HOLDING PEN / EMPTY", 3.2, [8, 1.5, -29.4]);
 }
 
-/** Climbable ladder drawn as rails + rungs, in the watchtower style. */
-function drawLadder(root: THREE.Object3D, ladder: { pos: Vec3; yMax: number }): void {
+/** Climbable ladder drawn as rails + rungs + wall-mount brackets. */
+function drawLadder(root: THREE.Object3D, ladder: { pos: Vec3; yMax: number }, wallZ?: number): void {
   const rungs: { pos: Vec3; size: Vec3 }[] = [];
-  for (const dx of [-0.34, 0.34]) rungs.push({ pos: [ladder.pos[0] + dx, ladder.yMax / 2 + 0.3, ladder.pos[2]], size: [0.055, ladder.yMax + 0.6, 0.055] });
-  for (let y = 0.24; y <= ladder.yMax + 0.35; y += 0.35) rungs.push({ pos: [ladder.pos[0], y, ladder.pos[2]], size: [0.7, 0.045, 0.045] });
+  const [lx, , lz] = ladder.pos;
+  for (const dx of [-0.34, 0.34]) rungs.push({ pos: [lx + dx, ladder.yMax / 2 + 0.3, lz], size: [0.055, ladder.yMax + 0.6, 0.055] });
+  for (let y = 0.24; y <= ladder.yMax + 0.35; y += 0.35) rungs.push({ pos: [lx, y, lz], size: [0.7, 0.045, 0.045] });
+
+  // Standoff wall-mount brackets anchoring ladder directly to the building wall
+  const wz = wallZ ?? (lz - 0.15);
+  const depth = Math.max(0.06, Math.abs(lz - wz));
+  const cz = (lz + wz) / 2;
+  for (let y = 1.0; y <= ladder.yMax; y += 1.8) {
+    for (const dx of [-0.34, 0.34]) {
+      rungs.push({ pos: [lx + dx, y, cz], size: [0.045, 0.045, depth] });
+      rungs.push({ pos: [lx + dx, y, wz], size: [0.12, 0.12, 0.02] });
+    }
+  }
   root.add(inkify(mergeBoxes(rungs)));
 }
 
@@ -364,8 +383,9 @@ function catwalk(root: THREE.Object3D): void {
   // Deck structure, railings and legs (everything except the platforms).
   root.add(inkify(mergeBoxes(CATWALK_BOXES.filter(b => b.kind !== "platform").map(b => ({ pos: b.pos, size: b.size })))));
   label(root, "ELEVATED WALKWAY", 3.4, [6, 5.85, 24.52]);
-  for (const ladder of EXTRA_LADDERS) drawLadder(root, ladder);
-  label(root, "ROOF ACCESS", 2.6, [-26, 6.4, 7.7]);
+  drawLadder(root, EXTRA_LADDERS[0], 7.50);
+  drawLadder(root, EXTRA_LADDERS[1], 27.50);
+  label(root, "ROOF ACCESS", 2.6, [-26, 6.4, 7.64]);
 }
 
 /** Two wrecked vehicles as recognisable hard cover. */

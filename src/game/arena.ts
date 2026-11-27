@@ -65,9 +65,9 @@ for (const x of [-26, 26]) {
 }
 
 export const ARENA_LADDERS: LadderDef[] = [
-  { id: "blue-deck", pos: [-26, 0, 4.65], yMin: 0, yMax: 4.2, radius: 0.82 },
-  { id: "red-deck", pos: [26, 0, 4.65], yMin: 0, yMax: 4.2, radius: 0.82 },
-  { id: "warehouse-roof", pos: [0, 0, 7.25], yMin: 0, yMax: 6.4, radius: 0.82 },
+  { id: "blue-deck", pos: [-26, 0, 3.65], yMin: 0, yMax: 4.2, radius: 0.82 },
+  { id: "red-deck", pos: [26, 0, 3.65], yMin: 0, yMax: 4.2, radius: 0.82 },
+  { id: "warehouse-roof", pos: [0, 0, 6.18], yMin: 0, yMax: 6.4, radius: 0.82 },
 ];
 
 export const ARENA_BOXES: BoxDef[] = [ground, ...boundary, ...centre, ...half, ...mirror, ...platforms];

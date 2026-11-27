@@ -267,11 +267,11 @@ function towerBoxes(t: TowerDef): BoxDef[] {
 export const TOWER_BOXES = TOWERS.flatMap(towerBoxes);
 /** Extra ladders the world draws itself: warehouse roof + elevated catwalk. */
 export const EXTRA_LADDERS: LadderDef[] = [
-  { id: "warehouse-roof-ladder", pos: [-26, 0, 7.85], yMin: 0, yMax: 7.6, radius: 0.75 },
-  { id: "catwalk-ladder", pos: [16, 0, 27.85], yMin: 0, yMax: 5.2, radius: 0.75 },
+  { id: "warehouse-roof-ladder", pos: [-26, 0, 7.62], yMin: 0, yMax: 7.6, radius: 0.75 },
+  { id: "catwalk-ladder", pos: [16, 0, 27.58], yMin: 0, yMax: 5.2, radius: 0.75 },
 ];
 export const LADDERS: LadderDef[] = [
-  ...TOWERS.map<LadderDef>(t => ({ id: `${t.id}-ladder`, pos: [t.pos[0], 0, t.pos[2] + 2.95], yMin: 0, yMax: t.platformHeight, radius: 0.75 })),
+  ...TOWERS.map<LadderDef>(t => ({ id: `${t.id}-ladder`, pos: [t.pos[0], 0, t.pos[2] + 2.45], yMin: 0, yMax: t.platformHeight, radius: 0.75 })),
   ...EXTRA_LADDERS,
 ];
 
@@ -336,12 +336,30 @@ export const WRECK_BOXES: BoxDef[] = [
   { kind: "container", pos: [40, 1.1, 44], size: [2.4, 2.2, 6.4] },
 ];
 
+/** Multi-box circular approximation of a cylinder:
+ *  By choosing angles where corners lie exactly on radius r (w = 2r cos theta, d = 2r sin theta),
+ *  every corner satisfies (w/2)^2 + (d/2)^2 = r^2.
+ *  This guarantees ZERO phantom collision extending outside the cylinder radius,
+ *  preventing bullets from hitting invisible air near the tanks!
+ */
+export function tankBoxes(t: { pos: Vec3; radius: number; height: number }): BoxDef[] {
+  const [x, , z] = t.pos;
+  const r = t.radius;
+  const h = t.height;
+  const angles = [8, 20, 32, 45, 58, 70, 82].map(deg => (deg * Math.PI) / 180);
+  return angles.map(theta => ({
+    kind: "building" as const,
+    pos: [x, h / 2, z] as Vec3,
+    size: [r * Math.cos(theta) * 2, h, r * Math.sin(theta) * 2] as Vec3,
+  }));
+}
+
 export const MAP_BOXES: BoxDef[] = [ground, ...boundaries, ...BUILDINGS, ...CRATES, ...COVER, ...TOWER_BOXES, ...fenceBoxes(FENCE_PANELS), ...fenceBoxes(PEN_PANELS), ...ROAD_RAILS, ...ROAD_OBSTACLES,
   ...BUNKER_CONCRETE, ...BUNKER_EARTH,
   ...CATWALK_BOXES, ...RAIL_BOXES, ...WRECK_BOXES, ...barrelBoxes,
-  // Tank collision matches the drawn cylinder exactly (full width 2r + a hair):
-  // never a phantom wall outside the shell, never a bullet slipping through it.
-  ...TANKS.map(t => ({ kind: "building" as const, pos: [t.pos[0], t.height / 2, t.pos[2]] as Vec3, size: [t.radius * 2 + 0.1, t.height, t.radius * 2 + 0.1] as Vec3 })),
+  // Multi-box cylindrical profile for tanks: matches the visible cylinder closely
+  // and guarantees zero phantom hitboxes outside the shell to stop bullet absorption.
+  ...TANKS.flatMap(tankBoxes),
 ];
 const solids = MAP_BOXES.map(boxToAabb);
 // Only thick, visible geometry stops a bullet: chain-link and the map-edge

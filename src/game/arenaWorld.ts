@@ -80,12 +80,21 @@ function staticDetails(root: THREE.Group): void {
 
   label(root, "IRONWORKS / FORGE 05", 6.6, [0, 4.5, 6.04]);
   const reverse = label(root, "IRONWORKS / FORGE 05", 6.6, [0, 4.5, -6.04]); reverse.rotation.y = Math.PI;
-  // Batch all ladder rails/rungs across the three routes to height.
+  // Batch all ladder rails/rungs across the three routes to height, with solid wall mounts.
   const ladderBoxes: { pos: Vec3; size: Vec3 }[] = [];
   for (const ladder of ARENA_LADDERS) {
     const [x, , z] = ladder.pos;
     for (const side of [-.34, .34]) ladderBoxes.push({ pos: [x + side, ladder.yMax / 2 + .3, z], size: [.055, ladder.yMax + .6, .055] });
     for (let y = .24; y <= ladder.yMax + .35; y += .37) ladderBoxes.push({ pos: [x, y, z], size: [.7, .045, .045] });
+    // Standoff struts mounting the ladder directly into the building wall and deck edge
+    const wallZ = ladder.id === "warehouse-roof" ? 6.0 : 3.5;
+    const bracketDepth = Math.max(0.06, Math.abs(z - wallZ));
+    const bracketCenterZ = (z + wallZ) / 2;
+    for (let y = 1.0; y <= ladder.yMax; y += 1.8) {
+      for (const side of [-.34, .34]) {
+        ladderBoxes.push({ pos: [x + side, y, bracketCenterZ], size: [.04, .04, bracketDepth] });
+      }
+    }
   }
   const ladderGeo = mergeBoxes(ladderBoxes);
   const ladderEdges = new THREE.EdgesGeometry(ladderGeo, 26);
